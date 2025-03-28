@@ -1,0 +1,90 @@
+name: Test Workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+
+  lint-git:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' # Makes sense only for pull requests
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: show
+        run: git log
+      - name: Check absence of fixup commits
+        run: |
+          ! git log | grep 'fixup!'
+      - name: Install gitlint
+        run: pip install --user requests gitlint
+      - name: Lint commit messages added to main
+        run: ~/.local/bin/gitlint --commits origin/${{ github.event.pull_request.base.ref }}..HEAD
+
+  check-changelog:
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'noChangeLog') == false &&
+      github.event_name == 'pull_request'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check that the CHANGELOG has been modified in the current branch
+        run: git whatchanged --name-only --pretty="" origin/${{ github.event.pull_request.base.ref }}..HEAD | grep CHANGELOG
+
+  lint-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Check CHANGELOG max line length
+        run: |
+          max_line_length=$(cat CHANGELOG.md | grep -Ev "^\[.*\]: https://github.com" | wc -L)
+          if [ $max_line_length -ge 80 ]; then
+            echo "ERROR: CHANGELOG has lines longer than 80 characters."
+            exit 1
+          fi
+
+
+  lint-back:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install development dependencies
+        run: pip install --user .[dev]
+      - name: Check code formatting with ruff
+        run: ~/.local/bin/ruff format . --diff
+      - name: Lint code with ruff
+        run: ~/.local/bin/ruff check .
+
+  test-pytest:
+    runs-on: ubuntu-latest
+
+    env:
+      DJANGO_SETTINGS_MODULE: test_project.settings
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install development dependencies
+        run: pip install --user .[dev]
+      - name: Run tests
+        run: ~/.local/bin/pytest -vvv tests/
