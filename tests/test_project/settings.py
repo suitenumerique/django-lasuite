@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "test_project.user",
 ]
 
 MIDDLEWARE = [
@@ -94,3 +95,30 @@ LOGGING = {
         "level": "INFO",
     },
 }
+
+
+# Test variables
+AUTH_USER_MODEL = "user.User"
+
+AUTHENTICATION_BACKENDS = [
+    "lasuite.oidc_login.backends.OIDCAuthenticationBackend",
+]
+
+#  - OIDC module
+ALLOW_LOGOUT_GET_METHOD = True
+
+OIDC_OP_TOKEN_ENDPOINT = None
+OIDC_OP_USER_ENDPOINT = None
+OIDC_OP_LOGOUT_ENDPOINT = None
+OIDC_RP_CLIENT_ID = "lasuite"
+OIDC_RP_CLIENT_SECRET = "lasuite"
+USER_OIDC_FIELDS_TO_FULLNAME = ["first_name", "last_name"]
+OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = True
+
+#  - OIDC resource server module
+OIDC_RS_AUDIENCE_CLAIM = "client_id"
+OIDC_RS_BACKEND_CLASS = "lasuite.oidc_resource_server.backend.ResourceServerBackend"
+OIDC_RS_ENCRYPTION_ENCODING = "A256GCM"
+OIDC_RS_ENCRYPTION_ALGO = "RSA-OAEP"
+OIDC_RS_SIGNING_ALGO = "ES256"
+OIDC_RS_SCOPES = ["groups"]

@@ -11,5 +11,6 @@ and this project adheres to
 ### Added
 
 - ✨(tools) extract domain from email address #2
+- ✨(oidc) add the authentication backends #2
 
 [unreleased]: https://github.com/suitenumerique/django-lasuite/commits/main/

@@ -1,0 +1,1 @@
+"""OIDC authentication module."""

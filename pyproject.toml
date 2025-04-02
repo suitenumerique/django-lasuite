@@ -24,6 +24,11 @@ classifiers = [
 ]
 dependencies = [
     "django>=5.0",
+    "djangorestframework>=3.15.2",
+    "mozilla-django-oidc>=4.0.1",
+    "joserfc>=1.0.4",
+    "requests>=2.32.3",
+    "PyJWT>=2.10.1",
 ]
 
 [project.urls]
@@ -36,7 +41,10 @@ build = [
     "wheel",
 ]
 dev = [
+    "factory_boy",
     "pytest",
+    "pytest-django",
+    "responses",
     "ruff",
 ]
 
@@ -110,6 +118,8 @@ lint.per-file-ignores = {"**/tests/*"= [
     "S",
     # flake8-self
     "SLF",
+    # magic-value-comparison
+    "PLR2004",
 ]}
 
 
