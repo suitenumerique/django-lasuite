@@ -280,7 +280,7 @@ def test_jwt_resource_server_backend_introspect_public_key_import_failure(
     )
 
     with patch.object(Logger, "debug") as mock_logger_debug:
-        expected_message = "Could get authorization server JWKS"
+        expected_message = "Could not get authorization server JWKS"
         with pytest.raises(SuspiciousOperation, match=expected_message):
             jwt_resource_server_backend._introspect(token)
 
@@ -317,7 +317,7 @@ def test_verify_user_info_wrong_scopes(resource_server_backend):
     """Test '_verify_user_info' with wrong requested scopes."""
     introspection_response = {"active": True, "scope": "wrong-scopes"}
 
-    expected_message = "Introspection response contains any required scopes."
+    expected_message = "Introspection response is missing required scopes."
     with patch.object(Logger, "debug") as mock_logger_debug:
         with pytest.raises(SuspiciousOperation, match=expected_message):
             resource_server_backend._verify_user_info(introspection_response)

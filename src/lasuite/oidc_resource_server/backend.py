@@ -133,7 +133,7 @@ class ResourceServerBackend:
 
         requested_scopes = introspection_response.get("scope", None).split(" ")
         if set(self._scopes).isdisjoint(set(requested_scopes)):
-            message = "Introspection response contains any required scopes."
+            message = "Introspection response is missing required scopes."
             logger.debug(message)
             raise SuspiciousOperation(message)
 
@@ -273,7 +273,7 @@ class JWTResourceServerBackend(ResourceServerBackend):
         try:
             public_key_set = self._authorization_server_client.import_public_keys()
         except (TypeError, ValueError, AttributeError, HTTPError) as err:
-            message = "Could get authorization server JWKS"
+            message = "Could not get authorization server JWKS"
             logger.debug("%s. Exception:", message, exc_info=True)
             raise SuspiciousOperation(message) from err
 
