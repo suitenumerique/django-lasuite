@@ -8,4 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(tools) extract domain from email address #2
+
 [unreleased]: https://github.com/suitenumerique/django-lasuite/commits/main/
