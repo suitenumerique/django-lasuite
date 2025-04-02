@@ -63,15 +63,15 @@ clean:  ## Clean the project folder
 .PHONY: clean
 
 format:  ## Run the formatter
-	@ruff format
+	@$(UV) run ruff format
 .PHONY: format
 
 lint: format  ## Run the linter
-	@ruff check .
+	@$(UV) run ruff check --fix .
 .PHONY: lint
 
 test:  ## Run the tests
-	@pytest tests/ -v
+	@cd tests && PYTHON_PATH=.:$(PYTHON_PATH) DJANGO_SETTINGS_MODULE=test_project.settings $(UV) run python -m pytest . -vvv
 .PHONY: test
 
 build: install-build  ## Build the project
@@ -79,13 +79,13 @@ build: install-build  ## Build the project
 .PHONY: build
 
 migrate:  ## Run the test project migrations
-	@cd tests && python -m test_project.manage migrate
+	@cd tests && $(UV) run python -m test_project.manage migrate
 .PHONY: migrate
 
 runserver:  ## Run the test project server
-	@cd tests && python -m test_project.manage runserver
+	@cd tests && $(UV) run python -m test_project.manage runserver
 .PHONY: runserver
 
 shell:  ## Run the test project Django shell
-	@cd tests && python -m test_project.manage shell
+	@cd tests && $(UV) run python -m test_project.manage shell
 .PHONY: shell

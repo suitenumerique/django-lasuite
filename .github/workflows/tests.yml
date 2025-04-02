@@ -76,6 +76,7 @@ jobs:
 
     env:
       DJANGO_SETTINGS_MODULE: test_project.settings
+      PYTHONPATH: .
 
     steps:
       - name: Checkout repository
@@ -87,4 +88,4 @@ jobs:
       - name: Install development dependencies
         run: pip install --user .[dev]
       - name: Run tests
-        run: ~/.local/bin/pytest -vvv tests/
+        run: cd tests && ~/.local/bin/pytest -vvv .
