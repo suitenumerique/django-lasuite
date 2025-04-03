@@ -8,10 +8,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.1] - 2025-04-03
+
 ### Added
 
 - ✨(tools) extract domain from email address #2
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/commits/main/
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.1...main
+[0.0.1]: https://github.com/suitenumerique/django-lasuite/releases/v1.0.0
