@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.2] - 2025-04-07
+
 ### Fixed
 
 - 🐛(oidc-rs) do not check iss in introspection #4
@@ -21,4 +23,5 @@ and this project adheres to
 - ✨(oidc) add refresh token tools #3
 
 [unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.1...main
-[0.0.1]: https://github.com/suitenumerique/django-lasuite/releases/v1.0.0
+[0.0.2]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.2
+[0.0.1]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.1
