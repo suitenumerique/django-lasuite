@@ -219,7 +219,6 @@ def test_jwt_resource_server_backend_introspect_success(
         "token_introspection": {
             "sub": "user123",
             "aud": "client_id",
-            "iss": "https://auth.server.com",
         },
     }
 
@@ -233,7 +232,6 @@ def test_jwt_resource_server_backend_introspect_success(
     assert result.claims == {
         "sub": "user123",
         "aud": "client_id",
-        "iss": "https://auth.server.com",
     }
 
     jwt_rs_backend._authorization_server_client.get_introspection.assert_called_once_with(

@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🐛(oidc-rs) do not check iss in introspection #4
+
 ## [0.0.1] - 2025-04-03
 
 ### Added

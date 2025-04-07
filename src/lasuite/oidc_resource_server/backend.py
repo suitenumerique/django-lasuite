@@ -251,6 +251,19 @@ class JWTResourceServerBackend(ResourceServerBackend):
     in JWT format, signed and encrypted.
     """
 
+    def __init__(self, authorization_server_client):
+        """Require client_id, client_secret set and authorization_server_client provided."""
+        super().__init__(authorization_server_client)
+
+        self._introspection_claims_registry = jose_jwt.JWTClaimsRegistry(
+            # Validation for the `introspection_token` claim
+            # iss is not mandatory here: validated in the upper JWT
+            active={"essential": True},
+            scope={"essential": True},  # content validated in _verify_user_info
+            # optional in RFC, but required here: "client_id" or "aud"
+            **{settings.OIDC_RS_AUDIENCE_CLAIM: {"essential": True}},
+        )
+
     def _introspect(self, access_token):
         """
         Introspect an access token to the authorization server.
