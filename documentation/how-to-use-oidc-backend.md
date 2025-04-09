@@ -33,6 +33,7 @@ OIDC_OP_USER_ENDPOINT_FORMAT = "AUTO"  # AUTO, JSON, or JWT
 # Optional settings
 OIDC_USER_SUB_FIELD = "sub"  # Field to store the OIDC subject identifier, defaults to "sub"
 USER_OIDC_FIELDS_TO_FULLNAME = ["first_name", "last_name"]  # Fields used to compute user's full name
+USER_OIDC_ESSENTIAL_CLAIMS = ["sub", "last_name"]  # Claims required for user identification
 OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = True  # Allow fallback to email for user identification
 OIDC_CREATE_USER = True  # Automatically create users if they don't exist
 ALLOW_LOGOUT_GET_METHOD = True  # Allow GET method for logout

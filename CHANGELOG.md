@@ -11,6 +11,7 @@ and this project adheres to
 ### Added
 
 - ✨(oidc) allow JSON format in user info endpoint #5
+- ✨(oidc) add essential claims check setting #6
 
 ## [0.0.2] - 2025-04-07
 

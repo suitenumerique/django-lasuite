@@ -92,6 +92,7 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
                 OIDCUserEndpointFormat.AUTO.name,
             )
         ]
+        self.USER_OIDC_ESSENTIAL_CLAIMS = self.get_settings("USER_OIDC_ESSENTIAL_CLAIMS", [])
 
     def get_token(self, payload):
         """
@@ -123,6 +124,7 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
 
         """
         return {
+            # Get user's full name from OIDC fields defined in settings
             "name": self.compute_full_name(user_info),
         }
 
@@ -190,6 +192,20 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
 
         return userinfo
 
+    def verify_claims(self, claims):
+        """
+        Verify the presence of essential claims and the "sub" (which is mandatory as defined
+        by the OIDC specification) to decide if authentication should be allowed.
+        """
+        essential_claims = set(self.USER_OIDC_ESSENTIAL_CLAIMS) | {"sub"}
+        missing_claims = [claim for claim in essential_claims if claim not in claims]
+
+        if missing_claims:
+            logger.error("Missing essential claims: %s", ", ".join(missing_claims))
+            return False
+
+        return True
+
     def get_or_create_user(self, access_token, id_token, payload):
         """
         Return a User based on userinfo. Create a new user if no match is found.
@@ -208,11 +224,11 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         """
         user_info = self.get_userinfo(access_token, id_token, payload)
 
-        sub = user_info.get("sub")
-        if not sub:
-            raise SuspiciousOperation(_("User info contained no recognizable user identification"))
+        if not self.verify_claims(user_info):
+            msg = "Claims verification failed"
+            raise SuspiciousOperation(msg)
 
-        # Get user's full name from OIDC fields defined in settings
+        sub = user_info["sub"]
         email = user_info.get("email")
 
         claims = {

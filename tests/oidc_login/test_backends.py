@@ -221,7 +221,7 @@ def test_models_oidc_user_getter_invalid_token(django_assert_num_queries, monkey
         django_assert_num_queries(0),
         pytest.raises(
             SuspiciousOperation,
-            match="User info contained no recognizable user identification",
+            match="Claims verification failed",
         ),
     ):
         klass.get_or_create_user(access_token="test-token", id_token=None, payload=None)
@@ -465,3 +465,98 @@ def test_authentication_get_userinfo_invalid_response(settings):
         match="User info response was not valid JWT",
     ):
         oidc_backend.get_userinfo("fake_access_token", None, None)
+
+
+def test_authentication_verify_claims_default(django_assert_num_queries, monkeypatch):
+    """The sub claim should be mandatory by default."""
+    klass = OIDCAuthenticationBackend()
+
+    def get_userinfo_mocked(*args):
+        return {
+            "test": "123",
+        }
+
+    monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", get_userinfo_mocked)
+
+    with (
+        django_assert_num_queries(0),
+        pytest.raises(
+            SuspiciousOperation,
+            match="Claims verification failed",
+        ),
+    ):
+        klass.get_or_create_user(access_token="test-token", id_token=None, payload=None)
+
+    assert User.objects.exists() is False
+
+
+@pytest.mark.parametrize(
+    ("essential_claims", "missing_claims"),
+    [
+        (["email", "sub", "last_name"], ["email", "sub"]),
+        (["Email", "sub", "last_name"], ["Email", "sub"]),  # Case sensitivity
+        (["email"], ["email", "sub"]),  # sub is mandatory by default
+    ],
+)
+def test_authentication_verify_claims_essential_missing(  # noqa: PLR0913
+    essential_claims,
+    missing_claims,
+    caplog,
+    django_assert_num_queries,
+    monkeypatch,
+    settings,
+):
+    """Ensure SuspiciousOperation is raised if essential claims are missing."""
+    settings.OIDC_OP_USER_ENDPOINT = "http://oidc.endpoint.test/userinfo"
+    settings.USER_OIDC_ESSENTIAL_CLAIMS = essential_claims
+
+    klass = OIDCAuthenticationBackend()
+
+    def get_userinfo_mocked(*args):
+        return {
+            "last_name": "Doe",
+        }
+
+    monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", get_userinfo_mocked)
+
+    caplog.clear()
+    with (
+        django_assert_num_queries(0),
+        pytest.raises(
+            SuspiciousOperation,
+            match="Claims verification failed",
+        ),
+    ):
+        klass.get_or_create_user(access_token="test-token", id_token=None, payload=None)
+
+    assert User.objects.exists() is False
+
+    assert "Missing essential claims:" in caplog.text
+    for claim in missing_claims:
+        assert claim in caplog.text
+
+
+def test_authentication_verify_claims_success(django_assert_num_queries, monkeypatch, settings):
+    """Ensure user is authenticated when all essential claims are present."""
+    settings.OIDC_OP_USER_ENDPOINT = "http://oidc.endpoint.test/userinfo"
+    settings.USER_OIDC_ESSENTIAL_CLAIMS = ["email", "last_name"]
+
+    klass = OIDCAuthenticationBackend()
+
+    def get_userinfo_mocked(*args):
+        return {
+            "email": "john.doe@example.com",
+            "last_name": "Doe",
+            "sub": "123",
+        }
+
+    monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", get_userinfo_mocked)
+
+    with django_assert_num_queries(3):
+        user = klass.get_or_create_user(access_token="test-token", id_token=None, payload=None)
+
+    assert User.objects.filter(id=user.id).exists()
+
+    assert user.sub == "123"
+    assert user.name == "Doe"
+    assert user.email == "john.doe@example.com"
