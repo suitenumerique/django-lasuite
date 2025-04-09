@@ -12,6 +12,7 @@ and this project adheres to
 
 - ✨(oidc) allow JSON format in user info endpoint #5
 - ✨(oidc) add essential claims check setting #6
+- ✨(oidc) disable duplicated emails for users #7
 
 ## [0.0.2] - 2025-04-07
 

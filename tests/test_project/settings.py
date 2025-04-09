@@ -114,7 +114,6 @@ OIDC_OP_AUTHORIZATION_ENDPOINT = None
 OIDC_RP_CLIENT_ID = "lasuite"
 OIDC_RP_CLIENT_SECRET = "lasuite"
 USER_OIDC_FIELDS_TO_FULLNAME = ["first_name", "last_name"]
-OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = True
 
 #  - OIDC resource server module
 OIDC_RS_AUDIENCE_CLAIM = "client_id"

@@ -15,6 +15,7 @@ from mozilla_django_oidc.auth import (
 from mozilla_django_oidc.utils import import_from_settings
 
 from lasuite.oidc_login.enums import OIDCUserEndpointFormat
+from lasuite.oidc_login.exceptions import DuplicateEmailError
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,14 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
             )
         ]
         self.USER_OIDC_ESSENTIAL_CLAIMS = self.get_settings("USER_OIDC_ESSENTIAL_CLAIMS", [])
+        self.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = self.get_settings(
+            "OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION",
+            True,
+        )
+        self.OIDC_ALLOW_DUPLICATE_EMAILS = self.get_settings(
+            "OIDC_ALLOW_DUPLICATE_EMAILS",
+            False,
+        )
 
     def get_token(self, payload):
         """
@@ -238,7 +247,10 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         claims.update(**self.get_extra_claims(user_info))
 
         # if sub is absent, try matching on email
-        user = self.get_existing_user(sub, email)
+        try:
+            user = self.get_existing_user(sub, email)
+        except DuplicateEmailError as exc:
+            raise SuspiciousOperation(exc.message) from exc
 
         if user:
             if not user.is_active:
@@ -275,12 +287,20 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         """Fetch existing user by sub or email."""
         try:
             return self.UserModel.objects.get(sub=sub)
-        except self.UserModel.DoesNotExist:
-            if email and settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION:
+        except self.UserModel.DoesNotExist as err:
+            if not email:
+                return None
+
+            if self.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION:
                 try:
                     return self.UserModel.objects.get(email=email)
                 except self.UserModel.DoesNotExist:
                     pass
+
+            elif self.UserModel.objects.filter(email=email).exists() and not self.OIDC_ALLOW_DUPLICATE_EMAILS:
+                raise DuplicateEmailError(
+                    "We couldn't find a user with this sub but the email is already associated with a registered user."
+                ) from err
         return None
 
     def update_user_if_needed(self, user, claims):
