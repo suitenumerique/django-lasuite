@@ -28,6 +28,7 @@ OIDC_RP_CLIENT_SECRET = "your-client-secret"
 OIDC_OP_TOKEN_ENDPOINT = "https://your-provider.com/token"
 OIDC_OP_USER_ENDPOINT = "https://your-provider.com/userinfo"
 OIDC_OP_LOGOUT_ENDPOINT = "https://your-provider.com/logout"
+OIDC_OP_USER_ENDPOINT_FORMAT = "AUTO"  # AUTO, JSON, or JWT
 
 # Optional settings
 OIDC_USER_SUB_FIELD = "sub"  # Field to store the OIDC subject identifier, defaults to "sub"

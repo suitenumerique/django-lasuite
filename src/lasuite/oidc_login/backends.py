@@ -2,6 +2,7 @@
 
 import logging
 from functools import lru_cache
+from json import JSONDecodeError
 
 import requests
 from cryptography.fernet import Fernet
@@ -12,6 +13,8 @@ from mozilla_django_oidc.auth import (
     OIDCAuthenticationBackend as MozillaOIDCAuthenticationBackend,
 )
 from mozilla_django_oidc.utils import import_from_settings
+
+from lasuite.oidc_login.enums import OIDCUserEndpointFormat
 
 logger = logging.getLogger(__name__)
 
@@ -69,14 +72,26 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
     def __init__(self, *args, **kwargs):
         """
         Initialize the OIDC Authentication Backend.
+
         Adds an internal attribute to store the token_info dictionary.
         The purpose of `self._token_info` is to not duplicate code from
         the original `authenticate` method.
         This won't be needed after https://github.com/mozilla/mozilla-django-oidc/pull/377
         is merged.
+
+        Sets the `OIDC_OP_USER_ENDPOINT_FORMAT` based on the settings, with fallback on "auto" mode.
+        This allows to enforce specific behavior for the user endpoint format (if you want to enforce
+        JWT use or JSON use).
         """
         super().__init__(*args, **kwargs)
         self._token_info = None
+
+        self.OIDC_OP_USER_ENDPOINT_FORMAT = OIDCUserEndpointFormat[
+            self.get_settings(
+                "OIDC_OP_USER_ENDPOINT_FORMAT",
+                OIDCUserEndpointFormat.AUTO.name,
+            )
+        ]
 
     def get_token(self, payload):
         """
@@ -152,7 +167,28 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
             proxies=self.get_settings("OIDC_PROXY", None),
         )
         user_response.raise_for_status()
-        return self.verify_token(user_response.text)
+
+        _expected_format = self.OIDC_OP_USER_ENDPOINT_FORMAT
+        if self.OIDC_OP_USER_ENDPOINT_FORMAT == OIDCUserEndpointFormat.AUTO:
+            # In auto mode, we check the content type of the response to determine
+            # the expected format.
+            if user_response.headers.get("Content-Type") == "application/jwt":
+                _expected_format = OIDCUserEndpointFormat.JWT
+            else:
+                _expected_format = OIDCUserEndpointFormat.JSON
+
+        if _expected_format == OIDCUserEndpointFormat.JWT:
+            try:
+                userinfo = self.verify_token(user_response.text)
+            except UnicodeDecodeError as exc:
+                raise SuspiciousOperation("User info response was not valid JWT") from exc
+        else:
+            try:
+                userinfo = user_response.json()
+            except (JSONDecodeError, UnicodeDecodeError) as exc:
+                raise SuspiciousOperation("User info response was not valid JSON") from exc
+
+        return userinfo
 
     def get_or_create_user(self, access_token, id_token, payload):
         """

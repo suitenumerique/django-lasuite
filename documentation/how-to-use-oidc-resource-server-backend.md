@@ -44,6 +44,7 @@ OIDC_RP_CLIENT_SECRET = "your-client-secret"
 # Authorization server endpoints
 OIDC_OP_TOKEN_ENDPOINT = "https://your-provider.com/token"
 OIDC_OP_USER_ENDPOINT = "https://your-provider.com/userinfo"
+OIDC_OP_USER_ENDPOINT_FORMAT = "AUTO"  # AUTO, JSON, or JWT
 ```
 
 ### URLs Configuration
