@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.4] - 2025-04-10
+
 ### Added
 
 - ✨(oidc) allow silent login authentication #8
@@ -33,7 +35,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.3...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.4...main
+[0.0.4]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.4
 [0.0.3]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.3
 [0.0.2]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.2
 [0.0.1]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.1
