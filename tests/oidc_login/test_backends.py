@@ -537,6 +537,27 @@ def test_authentication_verify_claims_essential_missing(  # noqa: PLR0913
         assert claim in caplog.text
 
 
+def test_models_oidc_user_getter_empty_sub(django_assert_num_queries, monkeypatch):
+    """The user's info contains a sub, but it's an empty string."""
+    klass = OIDCAuthenticationBackend()
+
+    def get_userinfo_mocked(*args):
+        return {"test": "123", "sub": ""}
+
+    monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", get_userinfo_mocked)
+
+    with (
+        django_assert_num_queries(0),
+        pytest.raises(
+            SuspiciousOperation,
+            match="User info contained no recognizable user identification",
+        ),
+    ):
+        klass.get_or_create_user(access_token="test-token", id_token=None, payload=None)
+
+    assert User.objects.exists() is False
+
+
 def test_authentication_verify_claims_success(django_assert_num_queries, monkeypatch, settings):
     """Ensure user is authenticated when all essential claims are present."""
     settings.OIDC_OP_USER_ENDPOINT = "http://oidc.endpoint.test/userinfo"

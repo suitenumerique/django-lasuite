@@ -231,6 +231,9 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
             raise SuspiciousOperation(msg)
 
         sub = user_info["sub"]
+        if not sub:
+            raise SuspiciousOperation("User info contained no recognizable user identification")
+
         email = user_info.get("email")
 
         claims = {

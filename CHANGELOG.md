@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🐛(oidc) do not allow empty sub claim #9
+
 ## [0.0.4] - 2025-04-10
 
 ### Added
