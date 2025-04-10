@@ -128,13 +128,14 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
             "name": self.compute_full_name(user_info),
         }
 
-    def post_get_or_create_user(self, user, claims):
+    def post_get_or_create_user(self, user, claims, is_new_user):
         """
         Post-processing after user creation or retrieval.
 
         Args:
           user (User): The user instance.
           claims (dict): The claims dictionary.
+          is_new_user (bool): Indicates if the user was newly created.
 
         Returns:
         - None
@@ -222,6 +223,7 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
           Exception: Raised when user creation is not allowed and no existing user is found.
 
         """
+        _user_created = False
         user_info = self.get_userinfo(access_token, id_token, payload)
 
         if not self.verify_claims(user_info):
@@ -247,8 +249,9 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
 
         elif self.get_settings("OIDC_CREATE_USER", True):
             user = self.create_user(claims)
+            _user_created = True
 
-        self.post_get_or_create_user(user, claims)
+        self.post_get_or_create_user(user, claims, _user_created)
         return user
 
     def create_user(self, claims):

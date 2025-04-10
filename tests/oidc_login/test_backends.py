@@ -2,6 +2,7 @@
 
 import contextlib
 import re
+from unittest.mock import MagicMock
 
 import pytest
 import responses
@@ -560,3 +561,48 @@ def test_authentication_verify_claims_success(django_assert_num_queries, monkeyp
     assert user.sub == "123"
     assert user.name == "Doe"
     assert user.email == "john.doe@example.com"
+
+
+@pytest.mark.django_db
+def test_post_get_or_create_user_called_for_existing_user(monkeypatch, django_assert_num_queries):
+    """Test that post_get_or_create_user is called for an existing user."""
+    klass = OIDCAuthenticationBackend()
+    user = factories.UserFactory()
+
+    # Mock the post_get_or_create_user method
+    mock_post_method = MagicMock()
+    monkeypatch.setattr(OIDCAuthenticationBackend, "post_get_or_create_user", mock_post_method)
+
+    def get_userinfo_mocked(*args):
+        return {"sub": user.sub}
+
+    monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", get_userinfo_mocked)
+
+    with django_assert_num_queries(1):
+        klass.get_or_create_user(access_token="test-token", id_token=None, payload=None)
+
+    mock_post_method.assert_called_once_with(user, {"sub": user.sub, "email": None, "name": None}, False)
+
+
+@pytest.mark.django_db
+def test_post_get_or_create_user_called_for_new_user(monkeypatch, django_assert_num_queries):
+    """Test that post_get_or_create_user is called for a newly created user."""
+    klass = OIDCAuthenticationBackend()
+
+    def get_userinfo_mocked(*args):
+        return {"sub": "new-sub", "email": "new@example.com", "first_name": "New", "last_name": "User"}
+
+    monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", get_userinfo_mocked)
+
+    # Mock the post_get_or_create_user method
+    mock_post_method = MagicMock()
+    monkeypatch.setattr(OIDCAuthenticationBackend, "post_get_or_create_user", mock_post_method)
+
+    with django_assert_num_queries(3):  # Create user queries
+        user = klass.get_or_create_user(access_token="test-token", id_token=None, payload=None)
+
+    mock_post_method.assert_called_once_with(
+        user,
+        {"sub": "new-sub", "email": "new@example.com", "name": "New User"},
+        True,
+    )

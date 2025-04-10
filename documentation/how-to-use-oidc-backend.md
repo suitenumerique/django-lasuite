@@ -90,10 +90,20 @@ class CustomOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         claims['custom_field'] = user_info.get('custom_field')
         return claims
 
-    def post_get_or_create_user(self, user, claims):
+    def post_get_or_create_user(self, user, claims, is_new_user):
+        """
+        Post-processing after user creation or retrieval.
+
+        Args:
+          user (User): The user instance.
+          claims (dict): The claims dictionary.
+          is_new_user (bool): Indicates if the user was newly created.
+
+        Returns:
+        - None
+
+        """
         # Add custom post-processing
-        super().post_get_or_create_user(user, claims)
-        # Additional processing...
 ```
 
 Then update your `AUTHENTICATION_BACKENDS` setting to use your custom class.
