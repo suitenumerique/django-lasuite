@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.5] - 2025-04-10
+
 ### Fixed
 
 - 🐛(oidc) do not allow empty sub claim #9
@@ -39,7 +41,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.4...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.5...main
+[0.0.5]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.5
 [0.0.4]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.4
 [0.0.3]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.3
 [0.0.2]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.2
