@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(oidc) allow silent login authentication #8
+
 ## [0.0.3] - 2025-04-09
 
 ### Added

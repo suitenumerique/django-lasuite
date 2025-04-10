@@ -105,6 +105,9 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 #  - OIDC module
+OIDC_AUTHENTICATE_CLASS = "lasuite.oidc_login.views.OIDCAuthenticationRequestView"
+OIDC_CALLBACK_CLASS = "lasuite.oidc_login.views.OIDCAuthenticationCallbackView"
+
 ALLOW_LOGOUT_GET_METHOD = True
 
 OIDC_OP_TOKEN_ENDPOINT = None

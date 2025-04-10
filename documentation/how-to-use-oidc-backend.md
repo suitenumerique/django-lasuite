@@ -22,6 +22,10 @@ AUTHENTICATION_BACKENDS = [
     'lasuite.oidc_login.backends.OIDCAuthenticationBackend',
 ]
 
+# Authentication to support OIDC silent login flows via the 'silent' query parameter
+OIDC_AUTHENTICATE_CLASS = "lasuite.oidc_login.views.OIDCAuthenticationRequestView"
+OIDC_CALLBACK_CLASS = "lasuite.oidc_login.views.OIDCAuthenticationCallbackView"
+
 # Required OIDC settings
 OIDC_RP_CLIENT_ID = "your-client-id"
 OIDC_RP_CLIENT_SECRET = "your-client-secret"
