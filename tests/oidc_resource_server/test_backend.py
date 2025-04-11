@@ -9,7 +9,6 @@ from unittest.mock import Mock, patch
 import pytest
 from django.contrib import auth
 from django.core.exceptions import SuspiciousOperation
-from django.test.utils import override_settings
 from joserfc.errors import InvalidClaimError, InvalidTokenError
 from joserfc.jwt import JWTClaimsRegistry, Token
 from requests.exceptions import HTTPError
@@ -56,15 +55,16 @@ def fixture_jwt_resource_server_backend(settings, mock_authorization_server):
     return JWTResourceServerBackend(mock_authorization_server)
 
 
-@override_settings(OIDC_RS_CLIENT_ID="client_id")
-@override_settings(OIDC_RS_CLIENT_SECRET="client_secret")
-@override_settings(OIDC_RS_ENCRYPTION_ENCODING="A256GCM")
-@override_settings(OIDC_RS_ENCRYPTION_ALGO="RSA-OAEP")
-@override_settings(OIDC_RS_SIGNING_ALGO="RS256")
-@override_settings(OIDC_RS_SCOPES=["scopes"])
 @patch.object(auth, "get_user_model", return_value="foo")
-def test_backend_initialization(mock_get_user_model, mock_authorization_server):
+def test_backend_initialization(mock_get_user_model, mock_authorization_server, settings):
     """Test the ResourceServerBackend initialization."""
+    settings.OIDC_RS_CLIENT_ID = "client_id"
+    settings.OIDC_RS_CLIENT_SECRET = "client_secret"
+    settings.OIDC_RS_ENCRYPTION_ENCODING = "A256GCM"
+    settings.OIDC_RS_ENCRYPTION_ALGO = "RSA-OAEP"
+    settings.OIDC_RS_SIGNING_ALGO = "RS256"
+    settings.OIDC_RS_SCOPES = ["scopes"]
+
     backend = ResourceServerBackend(mock_authorization_server)
 
     mock_get_user_model.assert_called_once()

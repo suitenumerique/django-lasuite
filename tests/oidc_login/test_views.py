@@ -8,7 +8,6 @@ from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.exceptions import SuspiciousOperation
 from django.test import RequestFactory
-from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import crypto
 from rest_framework.test import APIClient
@@ -24,12 +23,14 @@ from tests import factories
 pytestmark = pytest.mark.django_db
 
 
-@override_settings(LOGOUT_REDIRECT_URL="/example-logout")
-def test_view_logout_anonymous():
+def test_view_logout_anonymous(settings):
     """
     Anonymous users calling the logout url,
     should be redirected to the specified LOGOUT_REDIRECT_URL.
     """
+    settings.ALLOW_LOGOUT_GET_METHOD = True
+    settings.LOGOUT_REDIRECT_URL = "/example-logout"
+
     url = reverse("oidc_logout_custom")
     response = APIClient().get(url)
 
@@ -38,8 +39,10 @@ def test_view_logout_anonymous():
 
 
 @mock.patch.object(OIDCLogoutView, "construct_oidc_logout_url", return_value="/example-logout")
-def test_view_logout(mocked_oidc_logout_url):
+def test_view_logout(mocked_oidc_logout_url, settings):
     """Authenticated users should be redirected to OIDC provider for logout."""
+    settings.ALLOW_LOGOUT_GET_METHOD = True
+
     user = factories.UserFactory()
 
     client = APIClient()
@@ -54,10 +57,12 @@ def test_view_logout(mocked_oidc_logout_url):
     assert response.url == "/example-logout"
 
 
-@override_settings(LOGOUT_REDIRECT_URL="/default-redirect-logout")
 @mock.patch.object(OIDCLogoutView, "construct_oidc_logout_url", return_value="/default-redirect-logout")
-def test_view_logout_no_oidc_provider(mocked_oidc_logout_url):
+def test_view_logout_no_oidc_provider(mocked_oidc_logout_url, settings):
     """Authenticated users should be logged out when no OIDC provider is available."""
+    settings.ALLOW_LOGOUT_GET_METHOD = True
+    settings.LOGOUT_REDIRECT_URL = "/default-redirect-logout"
+
     user = factories.UserFactory()
 
     client = APIClient()
@@ -74,12 +79,13 @@ def test_view_logout_no_oidc_provider(mocked_oidc_logout_url):
     assert response.url == "/default-redirect-logout"
 
 
-@override_settings(LOGOUT_REDIRECT_URL="/example-logout")
-def test_view_logout_callback_anonymous():
+def test_view_logout_callback_anonymous(settings):
     """
     Anonymous users calling the logout callback url,
     should be redirected to the specified LOGOUT_REDIRECT_URL.
     """
+    settings.LOGOUT_REDIRECT_URL = "/example-logout"
+
     url = reverse("oidc_logout_callback")
     response = APIClient().get(url)
 
@@ -116,11 +122,12 @@ def test_view_logout_persist_state(initial_oidc_states):
     }
 
 
-@override_settings(OIDC_OP_LOGOUT_ENDPOINT="/example-logout")
 @mock.patch.object(OIDCLogoutView, "persist_state")
 @mock.patch.object(crypto, "get_random_string", return_value="mocked_state")
-def test_view_logout_construct_oidc_logout_url(mocked_get_random_string, mocked_persist_state):
+def test_view_logout_construct_oidc_logout_url(mocked_get_random_string, mocked_persist_state, settings):
     """Should construct the logout URL to initiate the logout flow with the OIDC provider."""
+    settings.OIDC_OP_LOGOUT_ENDPOINT = "/example-logout"
+
     user = factories.UserFactory()
 
     request = RequestFactory().request()
@@ -146,12 +153,12 @@ def test_view_logout_construct_oidc_logout_url(mocked_get_random_string, mocked_
     assert url in params["post_logout_redirect_uri"][0]
 
 
-@override_settings(LOGOUT_REDIRECT_URL="/")
-def test_view_logout_construct_oidc_logout_url_none_id_token():
+def test_view_logout_construct_oidc_logout_url_none_id_token(settings):
     """
     If no ID token is available in the session,
     the user should be redirected to the final URL.
     """
+    settings.LOGOUT_REDIRECT_URL = "/"
     user = factories.UserFactory()
 
     request = RequestFactory().request()
@@ -191,9 +198,9 @@ def test_view_logout_callback_wrong_state(initial_state):
     assert str(excinfo.value) == "OIDC callback state not found in session `oidc_states`!"
 
 
-@override_settings(LOGOUT_REDIRECT_URL="/example-logout")
-def test_view_logout_callback():
+def test_view_logout_callback(settings):
     """If state matches, callback should clear OIDC state and redirects."""
+    settings.LOGOUT_REDIRECT_URL = "/example-logout"
     user = factories.UserFactory()
 
     request = RequestFactory().get("/logout-callback/", data={"state": "mocked_state"})
