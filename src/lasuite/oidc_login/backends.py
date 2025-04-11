@@ -92,7 +92,14 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
                 OIDCUserEndpointFormat.AUTO.name,
             )
         ]
-        self.USER_OIDC_ESSENTIAL_CLAIMS = self.get_settings("USER_OIDC_ESSENTIAL_CLAIMS", [])
+        self.OIDC_USERINFO_FULLNAME_FIELDS = self.get_settings(
+            "OIDC_USERINFO_FULLNAME_FIELDS",
+            [],
+        )
+        self.OIDC_USERINFO_ESSENTIAL_CLAIMS = self.get_settings(
+            "OIDC_USERINFO_ESSENTIAL_CLAIMS",
+            [],
+        )
 
     def get_token(self, payload):
         """
@@ -198,7 +205,7 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         Verify the presence of essential claims and the "sub" (which is mandatory as defined
         by the OIDC specification) to decide if authentication should be allowed.
         """
-        essential_claims = set(self.USER_OIDC_ESSENTIAL_CLAIMS) | {"sub"}
+        essential_claims = set(self.OIDC_USERINFO_ESSENTIAL_CLAIMS) | {"sub"}
         missing_claims = [claim for claim in essential_claims if claim not in claims]
 
         if missing_claims:
@@ -273,7 +280,7 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
 
     def compute_full_name(self, user_info):
         """Compute user's full name based on OIDC fields in settings."""
-        name_fields = settings.USER_OIDC_FIELDS_TO_FULLNAME
+        name_fields = self.OIDC_USERINFO_FULLNAME_FIELDS
         full_name = " ".join(user_info[field] for field in name_fields if user_info.get(field))
         return full_name or None
 

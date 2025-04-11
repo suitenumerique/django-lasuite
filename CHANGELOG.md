@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- 💥(oidc) normalize setting names #10
+
 ## [0.0.5] - 2025-04-10
 
 ### Fixed

@@ -32,15 +32,14 @@ OIDC_RP_CLIENT_SECRET = "your-client-secret"
 OIDC_OP_TOKEN_ENDPOINT = "https://your-provider.com/token"
 OIDC_OP_USER_ENDPOINT = "https://your-provider.com/userinfo"
 OIDC_OP_LOGOUT_ENDPOINT = "https://your-provider.com/logout"
-OIDC_OP_USER_ENDPOINT_FORMAT = "AUTO"  # AUTO, JSON, or JWT
+OIDC_OP_USER_ENDPOINT_FORMAT = "AUTO"  # AUTO, JSON, or JWT, defaults to AUTO
 
 # Optional settings
 OIDC_USER_SUB_FIELD = "sub"  # Field to store the OIDC subject identifier, defaults to "sub"
-USER_OIDC_FIELDS_TO_FULLNAME = ["first_name", "last_name"]  # Fields used to compute user's full name
-USER_OIDC_ESSENTIAL_CLAIMS = ["sub", "last_name"]  # Claims required for user identification
+OIDC_USERINFO_FULLNAME_FIELDS = ["first_name", "last_name"]  # Fields used to compute user's full name, defaults to `[]`
+OIDC_USERINFO_ESSENTIAL_CLAIMS = ["sub", "last_name"]  # Claims required for user identification, defaults to `[]`
 OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = True  # Allow fallback to email for user identification
-OIDC_CREATE_USER = True  # Automatically create users if they don't exist
-ALLOW_LOGOUT_GET_METHOD = True  # Allow GET method for logout
+OIDC_CREATE_USER = True  # Automatically create users if they don't exist, defaults to `True`
 ```
 
 ### URLs
@@ -63,7 +62,7 @@ Your User model should include the following fields:
 1. `sub` - To store the OIDC subject identifier, you may replace this with 
     another field if needed but needs to set the `OIDC_USER_SUB_FIELD` setting
 2. `email` - For user identification (especially if fallback to email is enabled)
-3. `name` - To store user's full name (computed from fields defined in `USER_OIDC_FIELDS_TO_FULLNAME`)
+3. `name` - To store user's full name (computed from fields defined in `OIDC_USERINFO_FULLNAME_FIELDS`)
 
 ## Authentication Flow
 

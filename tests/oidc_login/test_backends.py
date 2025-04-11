@@ -509,7 +509,7 @@ def test_authentication_verify_claims_essential_missing(  # noqa: PLR0913
 ):
     """Ensure SuspiciousOperation is raised if essential claims are missing."""
     settings.OIDC_OP_USER_ENDPOINT = "http://oidc.endpoint.test/userinfo"
-    settings.USER_OIDC_ESSENTIAL_CLAIMS = essential_claims
+    settings.OIDC_USERINFO_ESSENTIAL_CLAIMS = essential_claims
 
     klass = OIDCAuthenticationBackend()
 
@@ -561,7 +561,7 @@ def test_models_oidc_user_getter_empty_sub(django_assert_num_queries, monkeypatc
 def test_authentication_verify_claims_success(django_assert_num_queries, monkeypatch, settings):
     """Ensure user is authenticated when all essential claims are present."""
     settings.OIDC_OP_USER_ENDPOINT = "http://oidc.endpoint.test/userinfo"
-    settings.USER_OIDC_ESSENTIAL_CLAIMS = ["email", "last_name"]
+    settings.OIDC_USERINFO_ESSENTIAL_CLAIMS = ["email", "last_name"]
 
     klass = OIDCAuthenticationBackend()
 
