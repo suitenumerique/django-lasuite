@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+✨(malware_detection) add a module malware_detection #11
+
 ### Fixed
 
 - 🐛(oidc) fix resource server client when using JSON introspection #16
