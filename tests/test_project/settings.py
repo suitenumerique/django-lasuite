@@ -62,6 +62,13 @@ DATABASES = {
     }
 }
 
+# Storage
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.InMemoryStorage",
+    }
+}
+
 # Internationalization
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
