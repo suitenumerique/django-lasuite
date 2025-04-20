@@ -28,6 +28,7 @@ dependencies = [
     "mozilla-django-oidc>=4.0.1",
     "joserfc>=1.0.4",
     "requests>=2.32.3",
+    "requests-toolbelt>=1.0.0",
     "PyJWT>=2.10.1",
 ]
 
@@ -46,6 +47,13 @@ dev = [
     "pytest-django",
     "responses",
     "ruff",
+    "django-lasuite[all]"
+]
+malware_detection = [
+    "celery>=5.0",
+]
+all=[
+    "django-lasuite[malware_detection]"
 ]
 
 [tool.hatch.build.targets.sdist]
