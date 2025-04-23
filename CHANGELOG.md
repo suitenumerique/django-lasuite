@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.7] - 2025-04-23
+
 ### Fixed
 
 - 🐛(oidc) fix user info endpoint format auto #12
@@ -51,7 +53,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.6...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.7...main
+[0.0.7]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.7
 [0.0.6]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.6
 [0.0.5]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.5
 [0.0.4]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.4
