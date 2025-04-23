@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🐛(oidc) fix user info endpoint format auto #12
+
 ## [0.0.6] - 2025-04-11
 
 ### Changed

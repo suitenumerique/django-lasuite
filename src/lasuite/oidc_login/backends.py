@@ -1,6 +1,7 @@
 """Authentication Backends for OIDC."""
 
 import logging
+from cgi import parse_header
 from functools import lru_cache
 from json import JSONDecodeError
 
@@ -182,7 +183,8 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         if self.OIDC_OP_USER_ENDPOINT_FORMAT == OIDCUserEndpointFormat.AUTO:
             # In auto mode, we check the content type of the response to determine
             # the expected format.
-            if user_response.headers.get("Content-Type") == "application/jwt":
+            content_type, _params = parse_header(user_response.headers.get("Content-Type", ""))
+            if content_type.lower() == "application/jwt":
                 _expected_format = OIDCUserEndpointFormat.JWT
             else:
                 _expected_format = OIDCUserEndpointFormat.JSON

@@ -383,6 +383,25 @@ def test_authentication_get_userinfo_auto_response(monkeypatch, settings):
     assert result["last_name"] == "Doe"
     assert result["email"] == "jane.doe@example.com"
 
+    # Authentication should work if the response is JWT with params in content type
+    responses.get(
+        settings.OIDC_OP_USER_ENDPOINT, body="fake.jwt.token", status=200, content_type="application/JWT; charset=utf-8"
+    )
+
+    def mock_verify_token(self, token):  # pylint: disable=unused-argument
+        return {
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "email": "jane.doe@example.com",
+        }
+
+    monkeypatch.setattr(OIDCAuthenticationBackend, "verify_token", mock_verify_token)
+    result = oidc_backend.get_userinfo("fake_access_token", None, None)
+
+    assert result["first_name"] == "Jane"
+    assert result["last_name"] == "Doe"
+    assert result["email"] == "jane.doe@example.com"
+
 
 @responses.activate
 def test_authentication_get_userinfo_json_response(settings):
