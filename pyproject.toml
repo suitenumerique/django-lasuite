@@ -47,6 +47,9 @@ dev = [
     "responses",
     "ruff",
 ]
+configuration = [
+    "django-configurations>=2.5.1",
+]
 
 [tool.hatch.build.targets.sdist]
 only-include = ["src"]
