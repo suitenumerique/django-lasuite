@@ -52,8 +52,12 @@ dev = [
 malware_detection = [
     "celery>=5.0",
 ]
+configuration = [
+    "django-configurations>=2.5.1",
+]
 all=[
-    "django-lasuite[malware_detection]"
+    "django-lasuite[malware_detection]",
+    "django-lasuite[configuration]",
 ]
 
 [tool.hatch.build.targets.sdist]

@@ -10,6 +10,8 @@ and this project adheres to
 
 ### Changed
 
+- ✨(configuration) add configuration Value to support file path
+  in environment #15
 - ♻️(malware_detection) retry getting analyse result sooner
 
 ## [0.0.8] - 2025-05-06
