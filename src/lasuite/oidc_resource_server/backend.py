@@ -15,6 +15,7 @@ from requests.exceptions import HTTPError
 from rest_framework.exceptions import AuthenticationFailed
 
 from . import utils
+from .clients import AuthorizationServerClient, JWTAuthorizationServerClient
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,10 @@ class ResourceServerBackend:
     For more information, visit: https://www.oauth.com/oauth2-servers/the-resource-server/
     """
 
+    authorization_server_client_class = AuthorizationServerClient
+
     # pylint: disable=too-many-instance-attributes
-    def __init__(self, authorization_server_client):
+    def __init__(self):
         """Require client_id, client_secret set and authorization_server_client provided."""
         # pylint: disable=invalid-name
         self.UserModel = auth.get_user_model()
@@ -47,12 +50,12 @@ class ResourceServerBackend:
         self._signing_algorithm = settings.OIDC_RS_SIGNING_ALGO
         self._scopes = settings.OIDC_RS_SCOPES
 
-        if not self._client_id or not self._client_secret or not authorization_server_client:
+        self._authorization_server_client = self.authorization_server_client_class()
+
+        if not self._client_id or not self._client_secret:
             raise ImproperlyConfigured(
                 f"Could not instantiate {self.__class__.__name__}: some parameters are missing.",
             )
-
-        self._authorization_server_client = authorization_server_client
 
         self._introspection_claims_registry = jose_jwt.JWTClaimsRegistry(
             iss={"essential": True, "value": self._authorization_server_client.url},
@@ -251,9 +254,11 @@ class JWTResourceServerBackend(ResourceServerBackend):
     in JWT format, signed and encrypted.
     """
 
-    def __init__(self, authorization_server_client):
+    authorization_server_client_class = JWTAuthorizationServerClient
+
+    def __init__(self):
         """Require client_id, client_secret set and authorization_server_client provided."""
-        super().__init__(authorization_server_client)
+        super().__init__()
 
         self._introspection_claims_registry = jose_jwt.JWTClaimsRegistry(
             # Validation for the `introspection_token` claim

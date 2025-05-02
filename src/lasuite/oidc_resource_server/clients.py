@@ -1,6 +1,7 @@
 """Resource Server Clients classes."""
 
 import requests
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from joserfc.jwk import KeySet
 
@@ -19,28 +20,18 @@ class AuthorizationServerClient:
     - Setting appropriate headers for secure communication as recommended by RFC drafts.
     """
 
-    # ruff: noqa: PLR0913 PLR0917
-    # pylint: disable=too-many-positional-arguments
-    # pylint: disable=too-many-arguments
-    def __init__(
-        self,
-        url,
-        url_jwks,
-        url_introspection,
-        verify_ssl,
-        timeout,
-        proxy,
-    ):
-        """Require at a minimum url, url_jwks and url_introspection."""
-        if not url or not url_jwks or not url_introspection:
-            raise ImproperlyConfigured("Could not instantiate AuthorizationServerClient, some parameters are missing.")
+    _header_accept = "application/json"
 
-        self.url = url
-        self._url_introspection = url_introspection
-        self._url_jwks = url_jwks
-        self._verify_ssl = verify_ssl
-        self._timeout = timeout
-        self._proxy = proxy
+    def __init__(self):
+        """Require at a minimum url, url_jwks and url_introspection."""
+        self.url = settings.OIDC_OP_URL
+        self._verify_ssl = settings.OIDC_VERIFY_SSL
+        self._timeout = settings.OIDC_TIMEOUT
+        self._proxy = settings.OIDC_PROXY
+        self._url_introspection = settings.OIDC_OP_INTROSPECTION_ENDPOINT
+
+        if not self.url or not self._url_introspection:
+            raise ImproperlyConfigured(f"Could not instantiate {self.__class__.__name__}, some parameters are missing.")
 
     @property
     def _introspection_headers(self):
@@ -55,7 +46,7 @@ class AuthorizationServerClient:
         """
         return {
             "Content-Type": "application/x-www-form-urlencoded",
-            "Accept": "application/token-introspection+jwt",
+            "Accept": self._header_accept,
         }
 
     def get_introspection(self, client_id, client_secret, token):
@@ -74,6 +65,32 @@ class AuthorizationServerClient:
         )
         response.raise_for_status()
         return response.text
+
+    def get_jwks(self):
+        """Retrieve Authorization Server JWKS."""
+        raise RuntimeError("get_jwks must not be used in JSON introspection mode.")
+
+    def import_public_keys(self):
+        """Retrieve and import Authorization Server JWKS."""
+        raise RuntimeError("import_public_keys must not be used in JSON introspection mode.")
+
+
+class JWTAuthorizationServerClient(AuthorizationServerClient):
+    """
+    Client for interacting with an OAuth 2.0 authorization server.
+
+    This client is specifically designed for authorization servers that use JWTs (JSON Web Tokens)
+    """
+
+    _header_accept = "application/token-introspection+jwt"
+
+    def __init__(self):
+        """Require at a minimum url, url_jwks and url_introspection."""
+        super().__init__()
+        self._url_jwks = settings.OIDC_OP_JWKS_ENDPOINT
+
+        if not self._url_jwks:
+            raise ImproperlyConfigured(f"Could not instantiate {self.__class__.__name__}, some parameters are missing.")
 
     def get_jwks(self):
         """Retrieve Authorization Server JWKS."""

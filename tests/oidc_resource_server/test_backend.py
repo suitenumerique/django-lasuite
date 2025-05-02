@@ -7,21 +7,14 @@ from logging import Logger
 from unittest.mock import Mock, patch
 
 import pytest
+import responses
 from django.contrib import auth
 from django.core.exceptions import SuspiciousOperation
 from joserfc.errors import InvalidClaimError, InvalidTokenError
 from joserfc.jwt import JWTClaimsRegistry, Token
-from requests.exceptions import HTTPError
 
 from lasuite.oidc_resource_server.backend import JWTResourceServerBackend, ResourceServerBackend
-
-
-@pytest.fixture(name="mock_authorization_server")
-def fixture_mock_authorization_server():
-    """Mock an Authorization Server client."""
-    mock_server = Mock()
-    mock_server.url = "https://auth.server.com"
-    return mock_server
+from lasuite.oidc_resource_server.clients import AuthorizationServerClient
 
 
 @pytest.fixture(name="mock_token")
@@ -33,7 +26,7 @@ def fixture_mock_token():
 
 
 @pytest.fixture(name="resource_server_backend")
-def fixture_resource_server_backend(settings, mock_authorization_server):
+def fixture_resource_server_backend(settings):
     """Generate a Resource Server backend."""
     settings.OIDC_RS_CLIENT_ID = "client_id"
     settings.OIDC_RS_CLIENT_SECRET = "client_secret"
@@ -42,21 +35,32 @@ def fixture_resource_server_backend(settings, mock_authorization_server):
     settings.OIDC_RS_SIGNING_ALGO = "ES256"
     settings.OIDC_RS_SCOPES = ["groups"]
 
-    return ResourceServerBackend(mock_authorization_server)
+    settings.OIDC_OP_URL = "https://auth.server.com"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://auth.server.com/introspect"
+    settings.OIDC_VERIFY_SSL = True
+    settings.OIDC_TIMEOUT = 10
+    settings.OIDC_PROXY = None
+    return ResourceServerBackend()
 
 
 @pytest.fixture(name="jwt_resource_server_backend")
-def fixture_jwt_resource_server_backend(settings, mock_authorization_server):
+def fixture_jwt_resource_server_backend(settings):
     """Generate a Resource Server backend."""
     settings.OIDC_RS_CLIENT_ID = "client_id"
     settings.OIDC_RS_CLIENT_SECRET = "client_secret"
     settings.OIDC_RS_SCOPES = ["groups"]
 
-    return JWTResourceServerBackend(mock_authorization_server)
+    settings.OIDC_OP_URL = "https://auth.server.com"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://auth.server.com/introspect"
+    settings.OIDC_OP_JWKS_ENDPOINT = "https://auth.server.com/jwks"
+    settings.OIDC_VERIFY_SSL = True
+    settings.OIDC_TIMEOUT = 10
+    settings.OIDC_PROXY = None
+    return JWTResourceServerBackend()
 
 
 @patch.object(auth, "get_user_model", return_value="foo")
-def test_backend_initialization(mock_get_user_model, mock_authorization_server, settings):
+def test_backend_initialization(mock_get_user_model, settings):
     """Test the ResourceServerBackend initialization."""
     settings.OIDC_RS_CLIENT_ID = "client_id"
     settings.OIDC_RS_CLIENT_SECRET = "client_secret"
@@ -65,7 +69,12 @@ def test_backend_initialization(mock_get_user_model, mock_authorization_server, 
     settings.OIDC_RS_SIGNING_ALGO = "RS256"
     settings.OIDC_RS_SCOPES = ["scopes"]
 
-    backend = ResourceServerBackend(mock_authorization_server)
+    settings.OIDC_OP_URL = "https://auth.server.com"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://auth.server.com/introspect"
+    settings.OIDC_VERIFY_SSL = True
+    settings.OIDC_TIMEOUT = 10
+    settings.OIDC_PROXY = None
+    backend = ResourceServerBackend()
 
     mock_get_user_model.assert_called_once()
     assert backend.UserModel == "foo"
@@ -77,7 +86,7 @@ def test_backend_initialization(mock_get_user_model, mock_authorization_server, 
     assert backend._signing_algorithm == "RS256"
     assert backend._scopes == ["scopes"]
 
-    assert backend._authorization_server_client == mock_authorization_server
+    assert isinstance(backend._authorization_server_client, AuthorizationServerClient)
     assert isinstance(backend._introspection_claims_registry, JWTClaimsRegistry)
 
     assert backend._introspection_claims_registry.options == {
@@ -242,17 +251,15 @@ def test_jwt_resource_server_backend_introspect_success(
     jwt_rs_backend._decode.assert_called_once_with(jws, "public_key_set")
 
 
+@responses.activate
 def test_introspect_introspection_failure(resource_server_backend):
     """Test '_introspect' method when introspection to the AS fails."""
-    token = "invalid_token"
-    resource_server_backend._authorization_server_client.get_introspection.side_effect = HTTPError(
-        "Introspection error"
-    )
+    responses.post("https://auth.server.com/introspect", status=500)
 
     with patch.object(Logger, "debug") as mock_logger_debug:
         expected_message = "Could not fetch introspection"
         with pytest.raises(SuspiciousOperation, match=expected_message):
-            resource_server_backend._introspect(token)
+            resource_server_backend._introspect("invalid_token")
 
         mock_logger_debug.assert_called_once_with("%s. Exception:", expected_message, exc_info=True)
 
@@ -261,6 +268,7 @@ def test_introspect_introspection_failure(resource_server_backend):
     "lasuite.oidc_resource_server.utils.import_private_key_from_settings",
     return_value="private_key",
 )
+@responses.activate
 # pylint: disable=unused-argument
 def test_jwt_resource_server_backend_introspect_public_key_import_failure(
     mock_import_private_key_from_settings, jwt_resource_server_backend
@@ -273,9 +281,7 @@ def test_jwt_resource_server_backend_introspect_public_key_import_failure(
     jwt_resource_server_backend._authorization_server_client.get_introspection = Mock(return_value=jwe)
     jwt_resource_server_backend._decrypt = Mock(return_value=jws)
 
-    (jwt_resource_server_backend._authorization_server_client.import_public_keys.side_effect) = HTTPError(
-        "Public key error"
-    )
+    responses.get("https://auth.server.com/jwks", status=500)
 
     with patch.object(Logger, "debug") as mock_logger_debug:
         expected_message = "Could not get authorization server JWKS"

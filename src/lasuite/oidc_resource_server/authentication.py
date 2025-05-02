@@ -12,7 +12,6 @@ from django.utils.module_loading import import_string
 from mozilla_django_oidc.contrib.drf import OIDCAuthentication
 
 from .backend import ResourceServerImproperlyConfiguredBackend
-from .clients import AuthorizationServerClient
 
 logger = logging.getLogger(__name__)
 
@@ -31,15 +30,7 @@ class ResourceServerAuthentication(OIDCAuthentication):
         super().__init__()
 
         try:
-            authorization_server_client = AuthorizationServerClient(
-                url=settings.OIDC_OP_URL,
-                verify_ssl=settings.OIDC_VERIFY_SSL,
-                timeout=settings.OIDC_TIMEOUT,
-                proxy=settings.OIDC_PROXY,
-                url_jwks=settings.OIDC_OP_JWKS_ENDPOINT,
-                url_introspection=settings.OIDC_OP_INTROSPECTION_ENDPOINT,
-            )
-            self.backend = get_resource_server_backend()(authorization_server_client)
+            self.backend = get_resource_server_backend()()
 
         except ImproperlyConfigured as err:
             message = "Resource Server authentication is disabled"

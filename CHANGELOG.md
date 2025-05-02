@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🐛(oidc) fix resource server client when using JSON introspection #16
+
 ## [0.0.7] - 2025-04-23
 
 ### Fixed
