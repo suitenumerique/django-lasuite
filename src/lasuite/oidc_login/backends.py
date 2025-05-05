@@ -20,13 +20,6 @@ from lasuite.oidc_login.enums import OIDCUserEndpointFormat
 logger = logging.getLogger(__name__)
 
 
-OIDC_USER_SUB_FIELD = getattr(
-    settings,
-    "OIDC_USER_SUB_FIELD",
-    "sub",
-)  # Default to 'sub' if not set in settings
-
-
 @lru_cache(maxsize=1)
 def get_cipher_suite():
     """Return a Fernet cipher suite."""
@@ -101,6 +94,11 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
             "OIDC_USERINFO_ESSENTIAL_CLAIMS",
             [],
         )
+
+        self.OIDC_USER_SUB_FIELD = self.get_settings(
+            "OIDC_USER_SUB_FIELD",
+            "sub",
+        )  # Default to 'sub' if not set in settings
 
     def get_token(self, payload):
         """
@@ -246,7 +244,7 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         email = user_info.get("email")
 
         claims = {
-            OIDC_USER_SUB_FIELD: sub,
+            self.OIDC_USER_SUB_FIELD: sub,
             "email": email,
         }
         claims.update(**self.get_extra_claims(user_info))
@@ -268,7 +266,7 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
 
     def create_user(self, claims):
         """Return a newly created User instance."""
-        sub = claims.get("sub")
+        sub = claims.get(self.OIDC_USER_SUB_FIELD)
         if sub is None:
             raise SuspiciousOperation(_("Claims contained no recognizable user identification"))
 
@@ -289,7 +287,7 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
     def get_existing_user(self, sub, email):
         """Fetch existing user by sub or email."""
         try:
-            return self.UserModel.objects.get(sub=sub)
+            return self.UserModel.objects.get(**{self.OIDC_USER_SUB_FIELD: sub})
         except self.UserModel.DoesNotExist:
             if email and settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION:
                 try:

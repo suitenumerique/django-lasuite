@@ -646,3 +646,21 @@ def test_post_get_or_create_user_called_for_new_user(monkeypatch, django_assert_
         {"sub": "new-sub", "email": "new@example.com", "name": "New User"},
         True,
     )
+
+
+def test_user_sub_field_for_create(settings):
+    """Test that the OIDC_USER_SUB_FIELD setting is used to create the user."""
+    settings.OIDC_USER_SUB_FIELD = "email"
+
+    OIDCAuthenticationBackend().create_user({"email": "test@example.com"})
+
+    assert User.objects.get(email="test@example.com")
+
+
+def test_user_sub_field_for_get_existing_user(settings):
+    """Test that the OIDC_USER_SUB_FIELD setting is used to get the existing user."""
+    settings.OIDC_USER_SUB_FIELD = "email"
+    settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = False
+
+    User.objects.create(email="test@example.com")
+    assert OIDCAuthenticationBackend().get_existing_user("test@example.com", None)
