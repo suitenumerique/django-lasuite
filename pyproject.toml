@@ -47,6 +47,7 @@ dev = [
     "pytest-django",
     "responses",
     "ruff",
+    "django-lasuite[all]"
 ]
 malware_detection = [
     "celery>=5.0",
