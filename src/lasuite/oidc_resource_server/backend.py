@@ -60,9 +60,11 @@ class ResourceServerBackend:
         self._introspection_claims_registry = jose_jwt.JWTClaimsRegistry(
             iss={"essential": True, "value": self._authorization_server_client.url},
             active={"essential": True},
-            scope={"essential": True},  # content validated in _verify_user_info
-            # optional in RFC, but required here: "client_id" or "aud"
-            **{settings.OIDC_RS_AUDIENCE_CLAIM: {"essential": True}},
+            # scope is optional in RFC, but mandatory here, it may be missing if `active` is False
+            scope={"essential": False},  # content validated in _verify_user_info
+            # audience is optional in RFC, but mandatory here: "client_id" or "aud"
+            # it might be missing if `active` is False
+            **{settings.OIDC_RS_AUDIENCE_CLAIM: {"essential": False}},  # content validated in _verify_user_info
         )
 
         # Declare the token origin audience: to know where the token comes from
@@ -127,21 +129,28 @@ class ResourceServerBackend:
         all the scopes the resource owner requested to expose only the relevant ones to
         our resource server.
         """
-        active = introspection_response.get("active", None)
+        active = introspection_response["active"]
 
         if not active:
-            message = "Introspection response is not active."
-            logger.debug(message)
+            message = "Introspected user is not active"
+            logger.info("Token introspection refused because user is not active")
+            raise SuspiciousOperation(message)  # is it suspicious or just PermissionDenied?
+
+        requested_scopes_str = introspection_response.get("scope", None)
+        if requested_scopes_str is None:
+            message = "Token introspection failed due to missing 'scope' claim."
+            logger.warning(message)
             raise SuspiciousOperation(message)
 
-        requested_scopes = introspection_response.get("scope", None).split(" ")
+        requested_scopes = requested_scopes_str.split(" ")
         if set(self._scopes).isdisjoint(set(requested_scopes)):
             message = "Introspection response is missing required scopes."
-            logger.debug(message)
+            logger.warning("Token introspection failed, missing required scopes: %s", requested_scopes)
             raise SuspiciousOperation(message)
 
         audience = introspection_response.get(settings.OIDC_RS_AUDIENCE_CLAIM, None)
         if not audience:
+            logger.warning("Token introspection failed, missing %s claim", settings.OIDC_RS_AUDIENCE_CLAIM)
             raise SuspiciousOperation("Introspection response does not provide source audience.")
 
         return introspection_response
@@ -264,9 +273,11 @@ class JWTResourceServerBackend(ResourceServerBackend):
             # Validation for the `introspection_token` claim
             # iss is not mandatory here: validated in the upper JWT
             active={"essential": True},
-            scope={"essential": True},  # content validated in _verify_user_info
-            # optional in RFC, but required here: "client_id" or "aud"
-            **{settings.OIDC_RS_AUDIENCE_CLAIM: {"essential": True}},
+            # scope is optional in RFC, but mandatory here, it may be missing if `active` is False
+            scope={"essential": False},  # content validated in _verify_user_info
+            # audience is optional in RFC, but mandatory here: "client_id" or "aud"
+            # it might be missing if `active` is False
+            **{settings.OIDC_RS_AUDIENCE_CLAIM: {"essential": False}},  # content validated in _verify_user_info
         )
 
     def _introspect(self, access_token):

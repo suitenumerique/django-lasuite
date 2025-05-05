@@ -91,9 +91,9 @@ def test_backend_initialization(mock_get_user_model, settings):
 
     assert backend._introspection_claims_registry.options == {
         "active": {"essential": True},
-        "client_id": {"essential": True},
+        "client_id": {"essential": False},
         "iss": {"essential": True, "value": "https://auth.server.com"},
-        "scope": {"essential": True},
+        "scope": {"essential": False},
     }
 
 
@@ -309,24 +309,46 @@ def test_verify_user_info_inactive(resource_server_backend):
     """Test '_verify_user_info' with an inactive introspection response."""
     introspection_response = {"active": False, "scope": "groups"}
 
-    expected_message = "Introspection response is not active."
-    with patch.object(Logger, "debug") as mock_logger_debug:
-        with pytest.raises(SuspiciousOperation, match=expected_message):
+    with patch.object(Logger, "info") as mock_logger_info:
+        with pytest.raises(SuspiciousOperation, match="Introspected user is not active"):
             resource_server_backend._verify_user_info(introspection_response)
 
-        mock_logger_debug.assert_called_once_with(expected_message)
+        mock_logger_info.assert_called_once_with("Token introspection refused because user is not active")
+
+
+def test_verify_user_info_missing_scope_claim(resource_server_backend):
+    """Test '_verify_user_info' with wrong requested scopes."""
+    introspection_response = {"active": True}
+
+    with patch.object(Logger, "warning") as mock_logger_warning:
+        with pytest.raises(SuspiciousOperation, match="Token introspection failed due to missing 'scope' claim."):
+            resource_server_backend._verify_user_info(introspection_response)
+
+        mock_logger_warning.assert_called_once_with("Token introspection failed due to missing 'scope' claim.")
 
 
 def test_verify_user_info_wrong_scopes(resource_server_backend):
     """Test '_verify_user_info' with wrong requested scopes."""
     introspection_response = {"active": True, "scope": "wrong-scopes"}
 
-    expected_message = "Introspection response is missing required scopes."
-    with patch.object(Logger, "debug") as mock_logger_debug:
-        with pytest.raises(SuspiciousOperation, match=expected_message):
+    with patch.object(Logger, "warning") as mock_logger_warning:
+        with pytest.raises(SuspiciousOperation, match="Introspection response is missing required scopes."):
             resource_server_backend._verify_user_info(introspection_response)
 
-        mock_logger_debug.assert_called_once_with(expected_message)
+        mock_logger_warning.assert_called_once_with(
+            "Token introspection failed, missing required scopes: %s", ["wrong-scopes"]
+        )
+
+
+def test_verify_user_info_missing_audience(resource_server_backend):
+    """Test '_verify_user_info' with wrong requested scopes."""
+    introspection_response = {"active": True, "scope": "groups"}
+
+    with patch.object(Logger, "warning") as mock_logger_warning:
+        with pytest.raises(SuspiciousOperation, match="Introspection response does not provide source audience."):
+            resource_server_backend._verify_user_info(introspection_response)
+
+        mock_logger_warning.assert_called_once_with("Token introspection failed, missing %s claim", "client_id")
 
 
 def test_resource_server_backend_get_user_success(resource_server_backend):
@@ -421,3 +443,55 @@ def test_get_user_no_user_identification(resource_server_backend):
             resource_server_backend.get_user(access_token)
 
         mock_logger_debug.assert_called_once_with(expected_message)
+
+
+@responses.activate
+def test_full_authentication_with_inactive_user(caplog, resource_server_backend):
+    """
+    Test the full authentication process when the user is inactive.
+
+    In such case the introspection response will only contain the active claim.
+    """
+    responses.post(
+        "https://auth.server.com/introspect",
+        status=200,
+        body=json.dumps({"iss": "https://auth.server.com", "active": False}),
+    )
+
+    with pytest.raises(SuspiciousOperation, match="Introspected user is not active"):
+        resource_server_backend.get_or_create_user("access_token", None, None)
+
+    assert "Token introspection refused because user is not active" in caplog.text
+
+
+@responses.activate
+@patch(
+    "lasuite.oidc_resource_server.utils.import_private_key_from_settings",
+    return_value="private_key",
+)
+def test_full_jwt_authentication_with_inactive_user(
+    mock_import_private_key_from_settings, caplog, jwt_resource_server_backend
+):
+    """
+    Test the full authentication process when the user is inactive.
+
+    In such case the introspection response will only contain the active claim.
+    """
+    jwt_resource_server_backend._authorization_server_client.get_introspection = Mock(return_value="valid_jwe")
+    jwt_resource_server_backend._decrypt = Mock(return_value="valid_jws")
+    jwt_resource_server_backend._authorization_server_client.import_public_keys = Mock(return_value="public_key_set")
+    jwt_resource_server_backend._decode = Mock(
+        return_value=Token(
+            {},
+            {
+                "aud": "client_id",
+                "iss": "https://auth.server.com",
+                "token_introspection": {"active": False},
+            },
+        )
+    )
+
+    with pytest.raises(SuspiciousOperation, match="Introspected user is not active"):
+        jwt_resource_server_backend.get_or_create_user("access_token", None, None)
+
+    assert "Token introspection refused because user is not active" in caplog.text

@@ -11,6 +11,7 @@ and this project adheres to
 ### Fixed
 
 - 🐛(oidc) fix resource server client when using JSON introspection #16
+- 🔊(oidc) improve resource server log for inactive user #17
 
 ## [0.0.7] - 2025-04-23
 
