@@ -13,6 +13,7 @@ and this project adheres to
 - 🐛(oidc) fix resource server client when using JSON introspection #16
 - 🔊(oidc) improve resource server log for inactive user #17
 - 🐛(oidc) use the OIDC_USER_SUB_FIELD when needed #18
+- 🩹(oidc) remove deprecated cgi use #19
 
 ## [0.0.7] - 2025-04-23
 

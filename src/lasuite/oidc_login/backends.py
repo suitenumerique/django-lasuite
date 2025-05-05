@@ -1,7 +1,6 @@
 """Authentication Backends for OIDC."""
 
 import logging
-from cgi import parse_header
 from functools import lru_cache
 from json import JSONDecodeError
 
@@ -9,6 +8,7 @@ import requests
 from cryptography.fernet import Fernet
 from django.conf import settings
 from django.core.exceptions import SuspiciousOperation
+from django.utils.http import parse_header_parameters
 from django.utils.translation import gettext_lazy as _
 from mozilla_django_oidc.auth import (
     OIDCAuthenticationBackend as MozillaOIDCAuthenticationBackend,
@@ -181,7 +181,7 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         if self.OIDC_OP_USER_ENDPOINT_FORMAT == OIDCUserEndpointFormat.AUTO:
             # In auto mode, we check the content type of the response to determine
             # the expected format.
-            content_type, _params = parse_header(user_response.headers.get("Content-Type", ""))
+            content_type, _params = parse_header_parameters(user_response.headers.get("Content-Type", ""))
             if content_type.lower() == "application/jwt":
                 _expected_format = OIDCUserEndpointFormat.JWT
             else:
