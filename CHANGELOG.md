@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.8] - 2025-05-06
+
 ### Added
 
 ✨(malware_detection) add a module malware_detection #11
@@ -64,7 +66,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.7...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.8...main
+[0.0.8]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.8
 [0.0.7]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.7
 [0.0.6]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.6
 [0.0.5]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.5
