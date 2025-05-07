@@ -55,6 +55,9 @@ malware_detection = [
 all=[
     "django-lasuite[malware_detection]"
 ]
+configuration = [
+    "django-configurations>=2.5.1",
+]
 
 [tool.hatch.build.targets.sdist]
 only-include = ["src"]
