@@ -8,11 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- ♻️(malware_detection) retry getting analyse result sooner
+
 ## [0.0.8] - 2025-05-06
 
 ### Added
 
-✨(malware_detection) add a module malware_detection #11
+- ✨(malware_detection) add a module malware_detection #11
 
 ### Fixed
 
