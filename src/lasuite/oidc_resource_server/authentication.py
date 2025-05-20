@@ -46,8 +46,8 @@ class ResourceServerAuthentication(OIDCAuthentication):
         """
         access_token = super().get_access_token(request)
 
-        with contextlib.suppress(binascii.Error, TypeError):
-            access_token = base64.b64decode(access_token).decode("utf-8")
+        with contextlib.suppress(binascii.Error, TypeError, UnicodeDecodeError):
+            access_token = base64.b64decode(access_token, validate=True).decode("utf-8")
 
         return access_token
 

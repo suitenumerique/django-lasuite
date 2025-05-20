@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🐛(oidc-rs) fix non base 64 authentication token #21
+
 ## [0.0.9] - 2025-05-20
 
 ### Added
