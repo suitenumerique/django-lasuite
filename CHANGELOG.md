@@ -8,10 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
-### Changed
+## [0.0.9] - 2025-05-20
+
+### Added
 
 - ✨(configuration) add configuration Value to support file path
   in environment #15
+
+### Changed
+
 - ♻️(malware_detection) retry getting analyse result sooner
 
 ## [0.0.8] - 2025-05-06
@@ -72,7 +77,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.8...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.9...main
+[0.0.9]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.9
 [0.0.8]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.8
 [0.0.7]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.7
 [0.0.6]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.6
