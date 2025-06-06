@@ -8,6 +8,9 @@ on:
     branches:
       - '*'
 
+permissions:
+  checks: write
+
 jobs:
 
   lint-git:
@@ -72,20 +75,43 @@ jobs:
         run: ~/.local/bin/ruff check .
 
   test-pytest:
+    name: test with ${{ matrix.python }}
     runs-on: ubuntu-latest
-
-    env:
-      DJANGO_SETTINGS_MODULE: test_project.settings
-      PYTHONPATH: .
+    strategy:
+      fail-fast: false
+      matrix:
+        python:
+          - "3.11"
+          - "3.12"
+          - "3.13"
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Install Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
         with:
-          python-version: '3.12'
-      - name: Install development dependencies
-        run: pip install --user .[dev]
-      - name: Run tests
-        run: cd tests && ~/.local/bin/pytest -vvv .
+          fetch-depth: 0
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install tox
+        run: uv tool install --python-preference only-managed --python 3.13 tox --with tox-uv --with tox-gh
+      - name: Install Python
+        if: matrix.python != '3.13'
+        run: uv python install --python-preference only-managed ${{ matrix.python }}
+      - name: Setup test suite
+        run: tox run -vv --notest --skip-missing-interpreters false
+        env:
+          TOX_GH_MAJOR_MINOR: ${{ matrix.python }}
+      - name: Run test suite
+        run: tox run --skip-pkg-install
+        env:
+          TOX_GH_MAJOR_MINOR: ${{ matrix.python }}
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: Test Results (${{ matrix.python }})
+          path: .tox/py*/junit.xml
+          reporter: java-junit
