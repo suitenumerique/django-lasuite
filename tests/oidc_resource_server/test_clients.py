@@ -5,6 +5,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from joserfc.errors import MissingKeyTypeError
 from joserfc.jwk import KeySet, RSAKey
 from requests.exceptions import HTTPError
 
@@ -184,15 +185,20 @@ def test_import_public_keys_http_error(mock_get, jwt_authorization_server_client
 @patch("requests.get")
 def test_import_public_keys_empty_jwks(mock_get, jwt_authorization_server_client):
     """Test 'import_public_keys' method with empty keys response."""
+    jwks1 = KeySet.generate_key_set("RSA", 2048)
+    jwks1_dict = jwks1.as_dict()
+
     mock_response = MagicMock()
     mock_response.raise_for_status.return_value = None
-    mock_response.json.return_value = {"keys": []}
+    mock_response.json.return_value = jwks1_dict
     mock_get.return_value = mock_response
 
     response = jwt_authorization_server_client.import_public_keys()
 
     assert isinstance(response, KeySet)
-    assert response.as_dict() == {"keys": []}
+    assert response.as_dict() == {
+        "keys": jwks1_dict["keys"],
+    }
 
 
 @patch("requests.get")
@@ -203,5 +209,5 @@ def test_import_public_keys_invalid_jwks(mock_get, jwt_authorization_server_clie
     mock_response.json.return_value = {"keys": [{"foo": "foo"}]}
     mock_get.return_value = mock_response
 
-    with pytest.raises(ValueError, match="Missing key type"):
+    with pytest.raises(MissingKeyTypeError, match="Missing key type"):
         jwt_authorization_server_client.import_public_keys()
