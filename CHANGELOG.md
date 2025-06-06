@@ -11,6 +11,7 @@ and this project adheres to
 ### Fixed
 
 - 🐛(oidc-rs) fix non base 64 authentication token #21
+- 📝(pyproject) fix the package metadata #23
 
 ## [0.0.9] - 2025-05-20
 
