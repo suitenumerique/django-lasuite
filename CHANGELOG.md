@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.10] - 2025-06-18
+
 ### Fixed
 
 - 🐛(oidc-rs) fix non base 64 authentication token #21
@@ -82,7 +84,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.9...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.10...main
+[0.0.10]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.10
 [0.0.9]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.9
 [0.0.8]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.8
 [0.0.7]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.7
