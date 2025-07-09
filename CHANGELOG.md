@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.11] - 2025-07-09
+
 ### Fixed
 
 - 🐛(resource-server) allow `aud` & `iss` JWE headers #24
@@ -88,7 +90,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.10...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.11...main
+[0.0.11]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.11
 [0.0.10]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.10
 [0.0.9]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.9
 [0.0.8]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.8
