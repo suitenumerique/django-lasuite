@@ -11,6 +11,7 @@ from joserfc import jwe as jose_jwe
 from joserfc import jwt as jose_jwt
 from joserfc.errors import InvalidClaimError, InvalidTokenError
 from joserfc.jwt import Token
+from joserfc.registry import HeaderParameter
 from requests.exceptions import HTTPError
 from rest_framework.exceptions import AuthenticationFailed
 
@@ -203,7 +204,21 @@ class ResourceServerBackend:
             decrypted_token = jose_jwe.decrypt_compact(
                 encrypted_token,
                 private_key,
-                algorithms=[self._encryption_algorithm, self._encryption_encoding],
+                registry=jose_jwe.JWERegistry(
+                    header_registry={
+                        # Manage extra header parameters which are not part of the JWE standard
+                        # but present in the encrypted token returned by node-oidc-provider
+                        "iss": HeaderParameter(
+                            "Issuer",
+                            "str",
+                        ),
+                        "aud": HeaderParameter(
+                            "Issuer",
+                            "str",
+                        ),
+                    },
+                    algorithms=[self._encryption_algorithm, self._encryption_encoding],
+                ),
             )
         except Exception as err:
             message = "Token decryption failed"

@@ -4,7 +4,7 @@ import json
 
 # pylint: disable=W0212
 from logging import Logger
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import pytest
 import responses
@@ -175,9 +175,36 @@ def test_decrypt_success(resource_server_backend):
 
     with patch("joserfc.jwe.decrypt_compact", return_value=expected_decrypted_token) as mock_decrypt:
         decrypted_token = resource_server_backend._decrypt(encrypted_token, private_key)
-        mock_decrypt.assert_called_once_with(encrypted_token, private_key, algorithms=["RSA-OAEP", "A256GCM"])
+        mock_decrypt.assert_called_once_with(encrypted_token, private_key, registry=ANY)
 
+        registry = mock_decrypt.call_args[1]["registry"]
+        assert registry.allowed == ["RSA-OAEP", "A256GCM"]
         assert decrypted_token == "blah"
+
+
+def test_decrypt_with_extra_headers(resource_server_backend):
+    """Test '_decrypt' method with a JWE containing extra headers 'iss' and 'aud'."""
+    encrypted_token = "valid_encrypted_token_with_extra_headers"
+    private_key = "private_key"
+
+    # Créer un mock JWE avec des en-têtes supplémentaires
+    mock_jwe = Mock()
+    mock_jwe.plaintext = "decrypted_content"
+    mock_jwe.header = {"alg": "RSA-OAEP", "enc": "A256GCM", "iss": "https://auth.server.com", "aud": "client_id"}
+
+    with patch("joserfc.jwe.decrypt_compact", return_value=mock_jwe) as mock_decrypt:
+        # Appel de la méthode à tester
+        decrypted_token = resource_server_backend._decrypt(encrypted_token, private_key)
+
+        # Vérifier que le registry contient bien les définitions pour iss et aud
+        registry = mock_decrypt.call_args[1]["registry"]
+        assert "iss" in registry.header_registry
+        assert "aud" in registry.header_registry
+
+        assert registry.allowed == ["RSA-OAEP", "A256GCM"]
+
+        # Vérifier que le contenu déchiffré est correct
+        assert decrypted_token == "decrypted_content"
 
 
 def test_decrypt_failure(resource_server_backend):
