@@ -3,6 +3,8 @@
 import factory.django
 from django.contrib.auth import get_user_model
 
+from lasuite.malware_detection.models import MalwareDetection
+
 User = get_user_model()
 
 
@@ -15,3 +17,12 @@ class UserFactory(factory.django.DjangoModelFactory):
 
     class Meta:  # noqa: D106
         model = User
+
+
+class MalwareDetectionFactory(factory.django.DjangoModelFactory):
+    """A factory to create random malware detections for testing purposes."""
+
+    path = factory.Faker("file_path")
+
+    class Meta:  # noqa: D106
+        model = MalwareDetection

@@ -10,7 +10,7 @@ and this project adheres to
 
 ### Added
 
-- ✨(malware_detection) limit simultaneous files analysis for jcop
+- ✨(malware_detection) limit simultaneous files analysis for jcop #25
 
 ### Fixed
 
