@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(malware_detection) limit simultaneous files analysis for jcop
+
 ### Fixed
 
 - 🐛(resource-server) allow `aud` & `iss` JWE headers #24
