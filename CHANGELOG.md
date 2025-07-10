@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(malware_detection) limit simultaneous files analysis for jcop
+
+### Fixed
+
+- 🐛(tests) fix test_project app to be usable with management command #25
+
 ## [0.0.11] - 2025-07-09
 
 ### Fixed
