@@ -11,6 +11,7 @@ class User(AbstractBaseUser):
     name = models.CharField("name", max_length=255, blank=True, null=True)  # noqa: DJ001
     email = models.EmailField("email address", blank=True, null=True)  # noqa: DJ001
     is_active = models.BooleanField("active", default=True)
+    USERNAME_FIELD = "email"
 
     def __str__(self):
         """Return a string representation of the user."""

@@ -8,9 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(malware_detection) limit simultaneous files analysis for jcop
+
 ### Fixed
 
 - 🐛(resource-server) allow `aud` & `iss` JWE headers #24
+- 🐛(tests) fix test_project app to be usable with management command #25
 
 ## [0.0.10] - 2025-06-18
 

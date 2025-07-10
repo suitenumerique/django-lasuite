@@ -77,6 +77,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 120
 target-version = "py310"
+extend-exclude = ["migrations"]
 lint.select = [
     # pycodestyle
     "E", "W",

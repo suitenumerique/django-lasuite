@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "lasuite.malware_detection",
     "test_project.user",
 ]
 
@@ -66,7 +67,10 @@ DATABASES = {
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.InMemoryStorage",
-    }
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
 }
 
 # Internationalization
