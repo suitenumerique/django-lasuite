@@ -130,13 +130,16 @@ lint.ignore = [
     # multi-line-summary-first-line
     "D212",
 ]
-lint.per-file-ignores = {"**/tests/*"= [
+lint.per-file-ignores = { "**/tests/*"= [
     # flake8-bandit
     "S",
     # flake8-self
     "SLF",
     # magic-value-comparison
     "PLR2004",
+], "__init__.py"= [
+    # Missing docstring in public package
+    "D104"
 ]}
 
 
