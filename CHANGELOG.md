@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.12] - 2025-07-22
+
 ### Added
 
 - ✨(malware_detection) limit simultaneous files analysis for jcop #25
@@ -98,7 +100,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.11...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.12...main
+[0.0.12]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.12
 [0.0.11]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.11
 [0.0.10]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.10
 [0.0.9]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.9
