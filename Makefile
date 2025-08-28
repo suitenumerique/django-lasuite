@@ -82,6 +82,10 @@ migrate:  ## Run the test project migrations
 	@cd tests && $(UV) run python -m test_project.manage migrate
 .PHONY: migrate
 
+makemigrations:  ## Run the test project migrations
+	@cd tests && $(UV) run python -m test_project.manage makemigrations
+.PHONY: makemigrations
+
 runserver:  ## Run the test project server
 	@cd tests && $(UV) run python -m test_project.manage runserver
 .PHONY: runserver
