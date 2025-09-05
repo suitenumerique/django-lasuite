@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(drf) implement monitored scope throttling class #27
+
 ## [0.0.13] - 2025-08-28
 
 ### Fixed
