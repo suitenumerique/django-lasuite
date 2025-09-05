@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.14] - 2025-09-05
+
 ### Added
 
 - ✨(drf) implement monitored scope throttling class #27
@@ -111,7 +113,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.13...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.14...main
+[0.0.14]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.13
 [0.0.13]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.13
 [0.0.12]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.12
 [0.0.11]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.11
