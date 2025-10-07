@@ -1,11 +1,21 @@
 """Unit tests for the Authentication Views."""
 
+import base64
+import json
+import time
+from hashlib import sha256
 from unittest import mock
 from urllib.parse import parse_qs, urlparse
 
+import jwt as pyjwt
 import pytest
+import responses
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.contrib.sessions.models import Session
 from django.core.exceptions import SuspiciousOperation
 from django.test import RequestFactory
 from django.urls import reverse
@@ -15,10 +25,13 @@ from rest_framework.test import APIClient
 from lasuite.oidc_login.views import (
     OIDCAuthenticationCallbackView,
     OIDCAuthenticationRequestView,
+    OIDCBackChannelLogoutView,
     OIDCLogoutCallbackView,
     OIDCLogoutView,
 )
 from tests import factories
+
+UserModel = get_user_model()
 
 pytestmark = pytest.mark.django_db
 
@@ -347,3 +360,533 @@ def test_view_callback_failure_url_silent_login(mocked_success_url):
     mocked_success_url.assert_called_once()
     assert returned_url == "foo"
     assert not request.session.get("silent")
+
+
+def test_backchannel_missing_logout_token_returns_400():
+    """POST without logout_token should return 400 with JSON and no-store header."""
+    view = OIDCBackChannelLogoutView.as_view()
+    url = "/oidc/backchannel-logout/"
+    # No logout_token in body
+    request = RequestFactory().post(url, data={})
+    response = view(request)
+
+    assert response.status_code == 400
+    assert response["Cache-Control"] == "no-store"
+    body = json.loads(response.content)
+    assert body["error"] == "invalid_request"
+    assert body["error_description"] == "Missing logout_token parameter"
+
+
+@mock.patch.object(OIDCBackChannelLogoutView, "validate_logout_token", return_value=None)
+@mock.patch.object(OIDCBackChannelLogoutView, "get_logout_token", return_value="token")
+def test_backchannel_invalid_token_returns_400(mock_get, mock_validate):
+    """Test that invalid logout token returns 400 error response."""
+    view = OIDCBackChannelLogoutView.as_view()
+    request = RequestFactory().post("/oidc/backchannel-logout/", data={"logout_token": "token"})
+    response = view(request)
+
+    assert response.status_code == 400
+    data = json.loads(response.content)
+    assert data["error"] == "invalid_request"
+    assert data["error_description"] == "Invalid logout token"
+
+
+@mock.patch.object(
+    OIDCBackChannelLogoutView,
+    "validate_logout_token",
+    return_value={"events": {OIDCBackChannelLogoutView.LOGOUT_EVENT_URI: {}}, "jti": "j"},
+)
+@mock.patch.object(OIDCBackChannelLogoutView, "get_logout_token", return_value="token")
+def test_backchannel_missing_sub_and_sid_returns_400(mock_get, mock_validate):
+    """Test that logout token missing both sub and sid claims returns 400 error."""
+    view = OIDCBackChannelLogoutView.as_view()
+    request = RequestFactory().post("/oidc/backchannel-logout/", data={"logout_token": "token"})
+    response = view(request)
+
+    assert response.status_code == 400
+    data = json.loads(response.content)
+    assert data["error_description"] == "Token must contain either sub or sid claim"
+
+
+@mock.patch.object(OIDCBackChannelLogoutView, "logout_user_sessions", return_value=True)
+@mock.patch.object(OIDCBackChannelLogoutView, "check_and_store_jti", return_value=False)
+@mock.patch.object(
+    OIDCBackChannelLogoutView,
+    "validate_logout_token",
+    return_value={"sub": "user-sub", "events": {OIDCBackChannelLogoutView.LOGOUT_EVENT_URI: {}}, "jti": "abc"},
+)
+@mock.patch.object(OIDCBackChannelLogoutView, "get_logout_token", return_value="token")
+def test_backchannel_jti_replay_returns_400(mock_get, mock_validate, mock_check, mock_logout_sessions):
+    """Test that replayed JTI (token already processed) returns 400 error."""
+    view = OIDCBackChannelLogoutView.as_view()
+    request = RequestFactory().post("/oidc/backchannel-logout/", data={"logout_token": "token"})
+    response = view(request)
+
+    assert response.status_code == 400
+    data = json.loads(response.content)
+    assert data["error_description"] == "Token already processed"
+
+
+@mock.patch.object(OIDCBackChannelLogoutView, "logout_user_sessions", return_value=True)
+@mock.patch.object(OIDCBackChannelLogoutView, "check_and_store_jti", return_value=True)
+@mock.patch.object(
+    OIDCBackChannelLogoutView,
+    "validate_logout_token",
+    return_value={"sub": "user-sub", "events": {OIDCBackChannelLogoutView.LOGOUT_EVENT_URI: {}}, "jti": "abc"},
+)
+@mock.patch.object(OIDCBackChannelLogoutView, "get_logout_token", return_value="token")
+def test_backchannel_success_returns_204_and_header(mock_get, mock_validate, mock_check, mock_logout_sessions):
+    """Test successful backchannel logout returns 204 with no-store header."""
+    view = OIDCBackChannelLogoutView.as_view()
+    request = RequestFactory().post("/oidc/backchannel-logout/", data={"logout_token": "token"})
+    response = view(request)
+
+    assert response.status_code == 204
+    assert response["Cache-Control"] == "no-store"
+
+
+@mock.patch.object(OIDCBackChannelLogoutView, "logout_user_sessions", return_value=False)
+@mock.patch.object(OIDCBackChannelLogoutView, "check_and_store_jti", return_value=True)
+@mock.patch.object(
+    OIDCBackChannelLogoutView,
+    "validate_logout_token",
+    return_value={"sub": "user-sub", "events": {OIDCBackChannelLogoutView.LOGOUT_EVENT_URI: {}}, "jti": "abc"},
+)
+@mock.patch.object(OIDCBackChannelLogoutView, "get_logout_token", return_value="token")
+def test_backchannel_logout_failure_returns_400(mock_get, mock_validate, mock_check, mock_logout_sessions):
+    """Test that logout failure returns 400 error response."""
+    view = OIDCBackChannelLogoutView.as_view()
+    request = RequestFactory().post("/oidc/backchannel-logout/", data={"logout_token": "token"})
+    response = view(request)
+
+    assert response.status_code == 400
+    data = json.loads(response.content)
+    assert data["error_description"] == "Logout failed"
+
+
+def test_backchannel_error_response_helper():
+    """Test the error_response helper method returns properly formatted error response."""
+    view = OIDCBackChannelLogoutView()
+    resp = view.error_response("invalid_request", "desc")
+    assert resp.status_code == 400
+    assert resp["Cache-Control"] == "no-store"
+    assert json.loads(resp.content) == {"error": "invalid_request", "error_description": "desc"}
+
+
+def test_is_valid_logout_event_true_and_false_cases():
+    """Test validation of logout event structure in various scenarios."""
+    view = OIDCBackChannelLogoutView()
+    # Missing events
+    assert not view.is_valid_logout_event({})
+    # Events not a dict
+    assert not view.is_valid_logout_event({"events": "x"})
+    # Wrong key
+    assert not view.is_valid_logout_event({"events": {"wrong": {}}})
+    # Value not a dict
+    assert not view.is_valid_logout_event({"events": {OIDCBackChannelLogoutView.LOGOUT_EVENT_URI: "x"}})
+    # Valid
+    assert view.is_valid_logout_event({"events": {OIDCBackChannelLogoutView.LOGOUT_EVENT_URI: {}}})
+
+
+def test_check_and_store_jti_cache_behavior():
+    """Test JTI caching behavior to prevent token replay attacks."""
+    view = OIDCBackChannelLogoutView()
+    assert view.check_and_store_jti("jti-1") is True
+    # Replay should be rejected
+    assert view.check_and_store_jti("jti-1") is False
+
+
+def test_logout_user_sessions_user_not_found():
+    """Test logout behavior when user with given sub is not found."""
+    view = OIDCBackChannelLogoutView()
+    # Non-existing sub should be treated as success per spec
+    assert view.logout_user_sessions("non-existent-sub") is True
+
+
+def test_logout_user_sessions_delete_all_sessions():
+    """Test that all user sessions are deleted when no specific sid is provided."""
+    user = factories.UserFactory()
+    # Create two authenticated sessions using two clients
+    client1 = APIClient()
+    client1.force_login(user)
+    key1 = client1.session.session_key
+
+    client2 = APIClient()
+    client2.force_login(user)
+    key2 = client2.session.session_key
+
+    view = OIDCBackChannelLogoutView()
+    ok = view.logout_user_sessions(user.sub)
+    assert ok is True
+
+    # Sessions should be gone
+
+    remaining = Session.objects.filter(session_key__in=[key1, key2])
+    assert remaining.count() == 0
+
+
+def test_logout_user_sessions_with_specific_sid_only_one_deleted():
+    """Test that only the session with specific sid is deleted when sid is provided."""
+    user = factories.UserFactory()
+    # Create two authenticated sessions and set sid on each
+    client_keep = APIClient()
+    client_keep.force_login(user)
+    session_keep = client_keep.session
+    session_keep["oidc_sid"] = "keep"
+    session_keep.save()
+    key_keep = session_keep.session_key
+
+    client_delete = APIClient()
+    client_delete.force_login(user)
+    session_delete = client_delete.session
+    session_delete["oidc_sid"] = "delete"
+    session_delete.save()
+    key_delete = session_delete.session_key
+
+    view = OIDCBackChannelLogoutView()
+    ok = view.logout_user_sessions(user.sub, sid="delete")
+    assert ok is True
+
+    assert Session.objects.filter(session_key=key_delete).count() == 0
+    assert Session.objects.filter(session_key=key_keep).count() == 1
+
+
+def test_logout_user_sessions_multiple_users_same_sub_error(monkeypatch):
+    """If multiple users with same sub exist, the method should return False."""
+    # Create two users, and then force the query to return MultipleObjectsReturned for the same sub
+
+    # Sanity: ORM would normally not allow duplicate subs due to unique=True, but
+    # we simulate the MultipleObjectsReturned branch by monkeypatching get() to raise.
+    def raise_multiple(*args, **kwargs):  # noqa: ARG001
+        raise UserModel.MultipleObjectsReturned()
+
+    monkeypatch.setattr(UserModel.objects, "get", raise_multiple)
+
+    view = OIDCBackChannelLogoutView()
+    assert view.logout_user_sessions("dup-sub") is False
+
+
+@pytest.mark.django_db(transaction=True)
+@responses.activate
+@pytest.mark.parametrize("oidc_sid", ["sid-123", None])
+def test_backchannel_full_flow_no_mock(live_server, settings, oidc_sid):
+    """End-to-end backchannel logout with live JWKS and real JWT signature validation."""
+    # Configure OIDC settings to point to live JWKS
+    issuer = live_server.url
+    settings.OIDC_RP_SIGN_ALGO = "RS256"
+    settings.OIDC_OP_URL = issuer
+    settings.OIDC_RP_CLIENT_ID = "test-client"
+    settings.OIDC_OP_JWKS_ENDPOINT = f"{issuer}/.well-known/jwks.json"
+
+    # Generate RSA keypair and corresponding JWK
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_pem = key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    public_numbers = key.public_key().public_numbers()
+
+    def b64u(x: bytes) -> str:
+        return base64.urlsafe_b64encode(x).rstrip(b"=").decode("ascii")
+
+    n = b64u(public_numbers.n.to_bytes((public_numbers.n.bit_length() + 7) // 8, "big"))
+    e = b64u(public_numbers.e.to_bytes((public_numbers.e.bit_length() + 7) // 8, "big"))
+
+    kid = b64u(sha256(n.encode("ascii")).digest())
+
+    jwk = {"kty": "RSA", "n": n, "e": e, "alg": "RS256", "use": "sig", "kid": kid}
+    jwks = {"keys": [jwk]}
+
+    # Mock the JWKS HTTP endpoint with responses
+    responses.add(
+        responses.GET,
+        settings.OIDC_OP_JWKS_ENDPOINT,
+        json=jwks,
+        status=200,
+        content_type="application/json",
+    )
+
+    # Create a user with a session and sid
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    session = client.session
+    session["oidc_sid"] = oidc_sid
+    session.save()
+
+    # Build logout token
+    now = int(time.time())
+    payload = {
+        "iss": issuer,
+        "aud": settings.OIDC_RP_CLIENT_ID,
+        "iat": now,
+        "exp": now + 60,
+        "jti": f"jti-{crypto.get_random_string(12)}",
+        "sub": user.sub,
+        "events": {OIDCBackChannelLogoutView.LOGOUT_EVENT_URI: {}},
+    }
+    if oidc_sid:
+        payload["sid"] = oidc_sid
+
+    token = pyjwt.encode(
+        payload,
+        private_pem,
+        algorithm="RS256",
+        headers={"alg": "RS256", "kid": kid, "typ": "logout+jwt"},
+    )
+
+    # Post backchannel logout
+    url = reverse("oidc_backchannel_logout")
+    resp = client.post(url, data={"logout_token": token})
+
+    assert resp.status_code == 204
+    assert resp["Cache-Control"] == "no-store"
+
+    # Session should be deleted
+
+    assert Session.objects.filter(session_key=session.session_key).count() == 0
+
+
+def test_logout_user_sessions_sid_only_user_found():
+    """Test logout behavior when only sid is provided and user is found."""
+    user = factories.UserFactory()
+
+    # Create session with oidc_sid
+    client = APIClient()
+    client.force_login(user)
+    session = client.session
+    session["oidc_sid"] = "test-sid-123"
+    session.save()
+    session_key = session.session_key
+
+    view = OIDCBackChannelLogoutView()
+
+    # Mock the user-related methods to verify they're called
+    with (
+        mock.patch.object(view, "revoke_refresh_tokens") as mock_revoke,
+        mock.patch.object(view, "propagate_logout_to_downstream_rps") as mock_propagate,
+    ):
+        result = view.logout_user_sessions(sub=None, sid="test-sid-123")
+
+        assert result is True
+        # Session should be deleted
+        assert Session.objects.filter(session_key=session_key).count() == 0
+
+        # User-related methods should be called since user was resolved
+        mock_revoke.assert_called_once_with(user)
+        mock_propagate.assert_called_once_with(user, None, "test-sid-123")
+
+
+def test_logout_user_sessions_sid_only_no_matching_session():
+    """Test logout behavior when only sid is provided but no matching session found."""
+    user = factories.UserFactory()
+
+    # Create session with different oidc_sid
+    client = APIClient()
+    client.force_login(user)
+    session = client.session
+    session["oidc_sid"] = "different-sid"
+    session.save()
+    session_key = session.session_key
+
+    view = OIDCBackChannelLogoutView()
+
+    with (
+        mock.patch.object(view, "revoke_refresh_tokens") as mock_revoke,
+        mock.patch.object(view, "propagate_logout_to_downstream_rps") as mock_propagate,
+    ):
+        result = view.logout_user_sessions(sub=None, sid="test-sid-123")
+
+        # Should succeed (per spec, already logged out is success)
+        assert result is True
+        # Session should still exist
+        assert Session.objects.filter(session_key=session_key).count() == 1
+
+        # User-related methods should not be called since no user was resolved
+        mock_revoke.assert_not_called()
+        mock_propagate.assert_not_called()
+
+
+def test_logout_user_sessions_sid_only_orphaned_session():
+    """Test logout behavior when only sid is provided but user no longer exists."""
+    user = factories.UserFactory()
+
+    # Create session with oidc_sid
+    client = APIClient()
+    client.force_login(user)
+    session = client.session
+    session["oidc_sid"] = "test-sid-123"
+    session.save()
+    session_key = session.session_key
+
+    # Delete the user, leaving orphaned session
+    user.delete()
+
+    view = OIDCBackChannelLogoutView()
+
+    with (
+        mock.patch.object(view, "revoke_refresh_tokens") as mock_revoke,
+        mock.patch.object(view, "propagate_logout_to_downstream_rps") as mock_propagate,
+    ):
+        result = view.logout_user_sessions(sub=None, sid="test-sid-123")
+
+        assert result is True
+        # Orphaned session should be deleted
+        assert Session.objects.filter(session_key=session_key).count() == 0
+
+        # User-related methods should not be called since user doesn't exist
+        mock_revoke.assert_not_called()
+        mock_propagate.assert_not_called()
+
+
+def test_logout_user_sessions_sid_only_anonymous_session():
+    """Test logout behavior when only sid is provided for anonymous session."""
+    # Create anonymous session with oidc_sid but no _auth_user_id
+    client = APIClient()
+    # Force create a session without login
+    session = client.session
+    session.create()  # Force session creation
+    session["oidc_sid"] = "test-sid-123"
+    session.save()
+    session_key = session.session_key
+
+    view = OIDCBackChannelLogoutView()
+
+    with (
+        mock.patch.object(view, "revoke_refresh_tokens") as mock_revoke,
+        mock.patch.object(view, "propagate_logout_to_downstream_rps") as mock_propagate,
+    ):
+        result = view.logout_user_sessions(sub=None, sid="test-sid-123")
+
+        assert result is True
+        # Anonymous session should be deleted
+        assert Session.objects.filter(session_key=session_key).count() == 0
+
+        # User-related methods should not be called since no user was resolved
+        mock_revoke.assert_not_called()
+        mock_propagate.assert_not_called()
+
+
+def test_logout_user_sessions_sid_only_invalid_user_id():
+    """Test logout behavior when session has invalid user_id format."""
+    # Create session with invalid user_id
+    client = APIClient()
+    session = client.session
+    session.create()  # Force session creation
+    session["oidc_sid"] = "test-sid-123"
+    session["_auth_user_id"] = "invalid-user-id"
+    session.save()
+    session_key = client.session.session_key
+
+    view = OIDCBackChannelLogoutView()
+
+    with (
+        mock.patch.object(view, "revoke_refresh_tokens") as mock_revoke,
+        mock.patch.object(view, "propagate_logout_to_downstream_rps") as mock_propagate,
+    ):
+        result = view.logout_user_sessions(sub=None, sid="test-sid-123")
+
+        # Should succeed even though user_id is invalid
+        assert result is True
+        # Session should still exist since we continue on error
+        assert Session.objects.filter(session_key=session_key).count() == 1
+
+        # User-related methods should not be called
+        mock_revoke.assert_not_called()
+        mock_propagate.assert_not_called()
+
+
+def test_logout_user_sessions_sid_only_multiple_sessions_only_matching_deleted():
+    """Test that only the session with matching sid is deleted when multiple sessions exist."""
+    user1 = factories.UserFactory()
+    user2 = factories.UserFactory()
+
+    # Create session for user1 with target sid
+    client1 = APIClient()
+    client1.force_login(user1)
+    session1 = client1.session
+    session1["oidc_sid"] = "target-sid"
+    session1.save()
+    key1 = session1.session_key
+
+    # Create session for user2 with different sid
+    client2 = APIClient()
+    client2.force_login(user2)
+    session2 = client2.session
+    session2["oidc_sid"] = "other-sid"
+    session2.save()
+    key2 = session2.session_key
+
+    # Create another session for user1 with different sid
+    client3 = APIClient()
+    client3.force_login(user1)
+    session3 = client3.session
+    session3["oidc_sid"] = "another-sid"
+    session3.save()
+    key3 = session3.session_key
+
+    view = OIDCBackChannelLogoutView()
+
+    with (
+        mock.patch.object(view, "revoke_refresh_tokens") as mock_revoke,
+        mock.patch.object(view, "propagate_logout_to_downstream_rps") as mock_propagate,
+    ):
+        result = view.logout_user_sessions(sub=None, sid="target-sid")
+
+        assert result is True
+
+        # Only the session with matching sid should be deleted
+        assert Session.objects.filter(session_key=key1).count() == 0  # deleted
+        assert Session.objects.filter(session_key=key2).count() == 1  # kept
+        assert Session.objects.filter(session_key=key3).count() == 1  # kept
+
+        # User-related methods should be called for user1
+        mock_revoke.assert_called_once_with(user1)
+        mock_propagate.assert_called_once_with(user1, None, "target-sid")
+
+
+def test_logout_user_sessions_neither_sub_nor_sid():
+    """Test logout behavior when neither sub nor sid is provided."""
+    view = OIDCBackChannelLogoutView()
+
+    with (
+        mock.patch.object(view, "revoke_refresh_tokens") as mock_revoke,
+        mock.patch.object(view, "propagate_logout_to_downstream_rps") as mock_propagate,
+    ):
+        result = view.logout_user_sessions(sub=None, sid=None)
+
+        assert result is False
+
+        # User-related methods should not be called
+        mock_revoke.assert_not_called()
+        mock_propagate.assert_not_called()
+
+
+def test_logout_user_sessions_both_sub_and_sid_user_resolved_first():
+    """Test that when both sub and sid are provided, user is resolved first (original behavior)."""
+    user = factories.UserFactory()
+
+    # Create session with oidc_sid
+    client = APIClient()
+    client.force_login(user)
+    session = client.session
+    session["oidc_sid"] = "test-sid-123"
+    session.save()
+    session_key = session.session_key
+
+    view = OIDCBackChannelLogoutView()
+
+    with (
+        mock.patch.object(view, "revoke_refresh_tokens") as mock_revoke,
+        mock.patch.object(view, "propagate_logout_to_downstream_rps") as mock_propagate,
+    ):
+        result = view.logout_user_sessions(sub=user.sub, sid="test-sid-123")
+
+        assert result is True
+        # Session should be deleted
+        assert Session.objects.filter(session_key=session_key).count() == 0
+
+        # User-related methods should be called
+        mock_revoke.assert_called_once_with(user)
+        mock_propagate.assert_called_once_with(user, user.sub, "test-sid-123")

@@ -3,7 +3,6 @@
 import re
 
 import requests
-
 from gitlint.rules import CommitMessageTitle, LineRule, RuleViolation
 
 
