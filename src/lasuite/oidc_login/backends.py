@@ -115,6 +115,7 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         if user is not None:
             # Then the user successfully authenticated
             store_oidc_refresh_token(request.session, self._token_info.get("refresh_token"))
+            request.session["oidc_sid"] = self._token_info.get("sid")
 
         return user
 

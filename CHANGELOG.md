@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(oidc) add backend logout endpoint #28
+
+
 ## [0.0.14] - 2025-09-05
 
 ### Added
