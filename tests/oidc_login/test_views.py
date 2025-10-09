@@ -106,6 +106,32 @@ def test_view_logout_callback_anonymous(settings):
     assert response.url == "/example-logout"
 
 
+def test_view_logout_callback_without_state(settings):
+    """
+    Logout callback without state parameter should redirect gracefully.
+    This handles SSO providers that send preflight requests without state.
+    """
+    settings.LOGOUT_REDIRECT_URL = "/example-logout"
+    user = factories.UserFactory()
+
+    request = RequestFactory().get("/logout-callback/")
+    request.user = user
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    request.session["oidc_states"] = {"some_state": {}}
+    request.session.save()
+
+    callback_view = OIDCLogoutCallbackView.as_view()
+    response = callback_view(request)
+
+    assert response.status_code == 302
+    assert response.url == "/example-logout"
+    # State should remain in session since no state was provided
+    assert request.session["oidc_states"] == {"some_state": {}}
+
+
 @pytest.mark.parametrize(
     "initial_oidc_states",
     [{}, {"other_state": "foo"}],
@@ -193,7 +219,7 @@ def test_view_logout_callback_wrong_state(initial_state):
     """Should raise an error if OIDC state doesn't match session data."""
     user = factories.UserFactory()
 
-    request = RequestFactory().request()
+    request = RequestFactory().get("/logout-callback/", data={"state": "invalid_state"})
     request.user = user
 
     middleware = SessionMiddleware(get_response=lambda x: x)
@@ -890,3 +916,85 @@ def test_logout_user_sessions_both_sub_and_sid_user_resolved_first():
         # User-related methods should be called
         mock_revoke.assert_called_once_with(user)
         mock_propagate.assert_called_once_with(user, user.sub, "test-sid-123")
+
+
+def test_view_callback_silent_login_with_invalid_state():
+    """Silent login failure with invalid state should raise SuspiciousOperation."""
+    user = factories.UserFactory()
+
+    request = RequestFactory().get("/callback/", data={"error": "login_required", "state": "invalid_state"})
+    request.user = user
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    request.session["silent"] = True
+    request.session["oidc_states"] = {"valid_state": {}}
+    request.session.save()
+
+    view = OIDCAuthenticationCallbackView()
+    view.request = request
+
+    with pytest.raises(SuspiciousOperation) as excinfo:
+        view.get(request)
+
+    assert str(excinfo.value) == "OIDC callback state validation failed during silent login"
+
+
+def test_view_callback_silent_login_with_missing_state():
+    """Silent login failure without state parameter should raise SuspiciousOperation."""
+    user = factories.UserFactory()
+
+    request = RequestFactory().get("/callback/", data={"error": "login_required"})
+    request.user = user
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    request.session["silent"] = True
+    request.session["oidc_states"] = {"valid_state": {}}
+    request.session.save()
+
+    view = OIDCAuthenticationCallbackView()
+    view.request = request
+
+    with pytest.raises(SuspiciousOperation) as excinfo:
+        view.get(request)
+
+    assert str(excinfo.value) == "OIDC callback state validation failed during silent login"
+
+
+@mock.patch.object(
+    OIDCAuthenticationCallbackView,
+    "success_url",
+    new_callable=mock.PropertyMock,
+    return_value="/homepage/",
+)
+def test_view_callback_silent_login_with_valid_state(mocked_success_url):
+    """Silent login failure with valid state should redirect and keep state for potential retry."""
+    user = factories.UserFactory()
+
+    request = RequestFactory().get("/callback/", data={"error": "login_required", "state": "valid_state"})
+    request.user = user
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    request.session["silent"] = True
+    request.session["oidc_states"] = {"valid_state": {}}
+    request.session.save()
+
+    view = OIDCAuthenticationCallbackView()
+    view.request = request
+
+    response = view.get(request)
+
+    mocked_success_url.assert_called_once()
+    assert response.status_code == 302
+    assert response.url == "/homepage/"
+    # The silent flag should be cleaned up
+    assert not request.session.get("silent")
+    # CRITICAL: The state should NOT be deleted on error=login_required
+    # because the SSO provider might send another callback with the actual code
+    # using the same state shortly after
+    assert "valid_state" in request.session.get("oidc_states", {})

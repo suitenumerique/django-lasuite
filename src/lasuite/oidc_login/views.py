@@ -64,6 +64,9 @@ class OIDCLogoutView(MozillaOIDCOIDCLogoutView):
             request.session["oidc_states"] = {}
 
         request.session["oidc_states"][state] = {}
+
+        # Force immediate session save for cache-based backends
+        request.session.modified = True
         request.session.save()
 
     def construct_oidc_logout_url(self, request):
@@ -119,6 +122,12 @@ class OIDCLogoutView(MozillaOIDCOIDCLogoutView):
         # If the user is not redirected to the OIDC provider, ensure logout
         if logout_url == self.redirect_url:
             auth.logout(request)
+        else:
+            # Force final session save before redirect to SSO
+            # This ensures the logout state generated in construct_oidc_logout_url()
+            # is persisted in Redis before the browser redirects
+            request.session.modified = True
+            request.session.save()
 
         return HttpResponseRedirect(logout_url)
 
@@ -148,13 +157,21 @@ class OIDCLogoutCallbackView(MozillaOIDCOIDCLogoutView):
 
         state = request.GET.get("state")
 
+        # Handle requests without state parameter
+        # Some SSO providers send a preflight request without state before the actual callback
+        # We should not raise an error in this case, just redirect gracefully
+        if not state:
+            return HttpResponseRedirect(self.redirect_url)
+
         if state not in request.session.get("oidc_states", {}):
             msg = "OIDC callback state not found in session `oidc_states`!"
             raise SuspiciousOperation(msg)
 
+        # Clean up the state from session
         del request.session["oidc_states"][state]
         request.session.save()
 
+        # Perform Django logout
         auth.logout(request)
 
         return HttpResponseRedirect(self.redirect_url)
@@ -618,19 +635,39 @@ class OIDCBackChannelLogoutView(View):
 
 
 class OIDCAuthenticationCallbackView(MozillaOIDCAuthenticationCallbackView):
-    """Custom callback view for handling the silent login flow."""
+    """Custom callback view for handling silent login failure with state validation."""
+
+    def get(self, request):
+        """Handle silent login failure with CSRF protection via state validation."""
+        error = request.GET.get("error")
+        state = request.GET.get("state")
+
+        # Validate state parameter even during silent login failures to prevent CSRF
+        if error == "login_required" and request.session.get("silent"):
+            if state and state in request.session.get("oidc_states", {}):
+                # Keep state for potential subsequent SSO callback with authorization code
+                del request.session["silent"]
+                request.session.save()
+                return HttpResponseRedirect(self.success_url)
+            msg = "OIDC callback state validation failed during silent login"
+            raise SuspiciousOperation(msg)
+
+        return super().get(request)
 
     @property
     def failure_url(self):
         """
         Override the failure URL property to handle silent login flow.
 
-        A silent login failure (e.g., no active user session) should not be
-        considered as an authentication failure.
+        A silent login failure (e.g., no active user session) should redirect
+        to success_url (homepage) instead of failure_url, because it's not
+        really a failure - it just means the user needs to log in manually.
         """
         if self.request.session.get("silent", None):
+            # Clean up silent flag
             del self.request.session["silent"]
             self.request.session.save()
+            # Redirect to success URL (homepage) instead of failure page
             return self.success_url
         return super().failure_url
 
@@ -638,19 +675,33 @@ class OIDCAuthenticationCallbackView(MozillaOIDCAuthenticationCallbackView):
 class OIDCAuthenticationRequestView(MozillaOIDCAuthenticationRequestView):
     """Custom authentication view for handling the silent login flow."""
 
+    def get(self, request):
+        """Force session persistence before redirect to SSO provider."""
+        if not request.session.session_key:
+            request.session.create()
+
+        response = super().get(request)
+
+        if hasattr(request, "session"):
+            request.session.modified = True
+            request.session.save()
+
+        return response
+
     def get_extra_params(self, request):
         """
         Handle 'prompt' extra parameter for the silent login flow.
 
-        This extra parameter is necessary to distinguish between a standard
-        authentication flow and the silent login flow.
+        Silent login (?silent=true) adds prompt=none to check for active
+        SSO session without displaying UI.
         """
         extra_params = self.get_settings("OIDC_AUTH_REQUEST_EXTRA_PARAMS", None)
         if extra_params is None:
             extra_params = {}
+
         if request.GET.get("silent", "").lower() == "true":
             extra_params = copy.deepcopy(extra_params)
             extra_params.update({"prompt": "none"})
             request.session["silent"] = True
-            request.session.save()
+
         return extra_params
