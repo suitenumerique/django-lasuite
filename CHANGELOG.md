@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🐛(oidc) fix `update_user` when `User.sub` is nullable #31
+
+
 ## [0.0.15] - 2025-10-24
 
 ### Added

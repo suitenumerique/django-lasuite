@@ -664,3 +664,25 @@ def test_user_sub_field_for_get_existing_user(settings):
 
     User.objects.create(email="test@example.com")
     assert OIDCAuthenticationBackend().get_existing_user("test@example.com", None)
+
+
+def test_authentication_update_existing_user_without_sub_with_other_user_without_sub(monkeypatch):
+    """
+    If an existing user has an empty sub but matches the email,
+    the user should be updated with the new sub.
+    The other sub-less users should be ignored.
+    """
+    klass = OIDCAuthenticationBackend()
+    db_user = factories.UserFactory(sub=None)
+    # Create another user without a sub
+    factories.UserFactory(sub=None)
+
+    def get_userinfo_mocked(*args):
+        return {"sub": "123", "email": db_user.email}
+
+    monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", get_userinfo_mocked)
+
+    user = klass.get_or_create_user(access_token="test-token", id_token=None, payload=None)
+
+    assert user == db_user
+    assert user.sub == "123"

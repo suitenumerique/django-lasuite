@@ -306,7 +306,8 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
 
             claim_value = claims.get(key)
             if claim_value and claim_value != getattr(user, key):
+                setattr(user, key, claim_value)
                 updated_claims[key] = claim_value
 
         if updated_claims:
-            self.UserModel.objects.filter(sub=user.sub).update(**updated_claims)
+            user.save(update_fields=tuple(updated_claims.keys()))
