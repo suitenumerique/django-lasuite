@@ -8,9 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.15] - 2025-10-24
+
 ### Added
 
 - ✨(oidc) add backend logout endpoint #28
+
+### Fixed
+
+- 🐛(oidc) validate state param during silent login failure for CSRF protection
+- 🐛(oidc) fix session persistence with Redis backend for OIDC flows
 
 
 ## [0.0.14] - 2025-09-05
@@ -118,7 +125,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.14...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.15...main
+[0.0.15]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.15
 [0.0.14]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.13
 [0.0.13]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.13
 [0.0.12]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.12
