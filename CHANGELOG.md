@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(backend) extract reach and roles choices #33
+
 ### Fixed
 
 - 🐛(oidc) do not allow user sub update when set #34
@@ -30,7 +34,6 @@ and this project adheres to
 
 - 🐛(oidc) validate state param during silent login failure for CSRF protection
 - 🐛(oidc) fix session persistence with Redis backend for OIDC flows
-
 
 ## [0.0.14] - 2025-09-05
 
