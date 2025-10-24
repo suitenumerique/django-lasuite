@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🐛(oidc) do not allow user sub update when set #34
+
+
 ## [0.0.16] - 2025-10-24
 
 ### Fixed

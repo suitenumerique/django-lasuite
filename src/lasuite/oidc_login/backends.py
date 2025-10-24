@@ -100,6 +100,11 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
             "sub",
         )  # Default to 'sub' if not set in settings
 
+        self.OIDC_USER_SUB_FIELD_IMMUTABLE = self.get_settings(
+            "OIDC_USER_SUB_FIELD_IMMUTABLE",
+            not settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION,
+        )  # Default to False if email fallback is allowed
+
     def get_token(self, payload):
         """
         Return token object as a dictionary.
@@ -306,6 +311,23 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
 
             claim_value = claims.get(key)
             if claim_value and claim_value != getattr(user, key):
+                if key == self.OIDC_USER_SUB_FIELD and getattr(user, key) and self.OIDC_USER_SUB_FIELD_IMMUTABLE:
+                    logger.warning(
+                        "Attempt to change immutable field '%s' for user %s: %s -> %s",
+                        key,
+                        user.pk,
+                        getattr(user, key),
+                        claim_value,
+                    )
+                    continue
+                if key != self.OIDC_USER_SUB_FIELD:
+                    logger.info(
+                        "Update '%s' field for user %s: %s -> %s",
+                        key,
+                        user.pk,
+                        getattr(user, key),
+                        claim_value,
+                    )
                 setattr(user, key, claim_value)
                 updated_claims[key] = claim_value
 

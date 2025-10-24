@@ -1,6 +1,7 @@
 """Unit tests for the Authentication Backends."""
 
 import contextlib
+import logging
 import re
 from unittest.mock import MagicMock
 
@@ -686,3 +687,42 @@ def test_authentication_update_existing_user_without_sub_with_other_user_without
 
     assert user == db_user
     assert user.sub == "123"
+
+
+@pytest.mark.parametrize(
+    ("initial_sub", "sub_is_immutable", "sub_updated"),
+    [
+        (None, False, True),
+        (None, True, True),
+        ("existing-sub", True, False),
+        ("existing-sub", False, True),
+    ],
+)
+def test_authentication_update_existing_user_with_sub(  # noqa: PLR0913
+    caplog, monkeypatch, settings, initial_sub, sub_is_immutable, sub_updated
+):
+    """
+    If a user already has a sub we should only update it if the sub is empty or the
+    project allows updating subs.
+    """
+    settings.OIDC_USER_SUB_FIELD_IMMUTABLE = sub_is_immutable
+
+    klass = OIDCAuthenticationBackend()
+    db_user = factories.UserFactory(sub=initial_sub)
+
+    def get_userinfo_mocked(*args):
+        return {"sub": "123", "email": db_user.email}
+
+    monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", get_userinfo_mocked)
+
+    caplog.clear()
+    caplog.set_level(logging.WARNING, logger="lasuite.oidc_login.backends")
+    user = klass.get_or_create_user(access_token="test-token", id_token=None, payload=None)
+
+    assert user == db_user
+
+    if sub_updated:
+        assert user.sub == "123"
+    else:
+        assert f"Attempt to change immutable field 'sub' for user {db_user.pk}: existing-sub -> 123" in caplog.text
+        assert user.sub == initial_sub
