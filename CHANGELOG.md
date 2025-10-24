@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.16] - 2025-10-24
+
 ### Fixed
 
 - 🐛(oidc) fix `update_user` when `User.sub` is nullable #31
@@ -130,7 +132,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.15...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.16...main
+[0.0.16]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.16
 [0.0.15]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.15
 [0.0.14]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.13
 [0.0.13]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.13
