@@ -17,11 +17,10 @@ from django.utils import crypto, timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from joserfc import jwt
-from joserfc._keys import KeySet
-from jwt import get_unverified_header
-from jwt.exceptions import DecodeError, InvalidTokenError
-from jwt.utils import force_bytes
+from joserfc import jws, jwt
+from joserfc.errors import DecodeError, JoseError
+from joserfc.jwk import KeySet
+from joserfc.util import to_bytes
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
 from mozilla_django_oidc.utils import absolutify, import_from_settings
 from mozilla_django_oidc.views import (
@@ -327,10 +326,11 @@ class OIDCBackChannelLogoutView(View):
         """
         try:
             # Check token type (recommended but not mandatory for compatibility)
-            logout_token = force_bytes(logout_token)
+            logout_token = to_bytes(logout_token)
 
             try:
-                header = get_unverified_header(logout_token)
+                obj = jws.extract_compact(logout_token)
+                header = obj.protected
                 token_type = header.get("typ")
                 if token_type and token_type.lower() != self.LOGOUT_TOKEN_TYPE:
                     logger.warning("Unexpected token type: %s (expected: %s)", token_type, self.LOGOUT_TOKEN_TYPE)
@@ -387,7 +387,7 @@ class OIDCBackChannelLogoutView(View):
 
             return payload
 
-        except InvalidTokenError as e:
+        except JoseError as e:
             logger.exception("Invalid JWT token: %s", e)
             return None
         except Exception as e:
