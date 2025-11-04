@@ -109,7 +109,7 @@ jobs:
         env:
           TOX_GH_MAJOR_MINOR: ${{ matrix.python }}
       - name: Test Report
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         if: success() || failure()
         with:
           name: Test Results (${{ matrix.python }})
