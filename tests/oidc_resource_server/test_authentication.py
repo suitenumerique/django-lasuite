@@ -5,12 +5,9 @@ import json
 
 import pytest
 import responses
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 from joserfc import jwe as jose_jwe
 from joserfc import jwt as jose_jwt
 from joserfc.jwk import RSAKey
-from jwt.utils import to_base64url_uint
 from rest_framework.request import Request as DRFRequest
 from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED
 
@@ -130,20 +127,10 @@ def test_jwt_resource_server_authentication_class(  # pylint: disable=unused-arg
     `resource_server_token_audience` attribute which is used in
     the resource server views.
     """
-    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_key = RSAKey.generate_key(private=True)
+    public_key = RSAKey.import_key(private_key.as_dict(private=False))
 
-    unencrypted_pem_private_key = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.TraditionalOpenSSL,
-        encryption_algorithm=serialization.NoEncryption(),
-    )
-
-    pem_public_key = private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    )
-
-    settings.OIDC_RS_PRIVATE_KEY_STR = unencrypted_pem_private_key.decode("utf-8")
+    settings.OIDC_RS_PRIVATE_KEY_STR = private_key.as_pem(private=True).decode()
     settings.OIDC_RS_ENCRYPTION_KEY_TYPE = "RSA"
     settings.OIDC_RS_ENCRYPTION_ENCODING = "A256GCM"
     settings.OIDC_RS_ENCRYPTION_ALGO = "RSA-OAEP"
@@ -159,24 +146,17 @@ def test_jwt_resource_server_authentication_class(  # pylint: disable=unused-arg
     settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
 
     # Mock the JWKS endpoint
-    public_numbers = private_key.public_key().public_numbers()
+    public_jwk = private_key.as_dict(
+        private=False,
+        kty=settings.OIDC_RS_ENCRYPTION_KEY_TYPE,
+        alg=settings.OIDC_RS_SIGNING_ALGO,
+        use="sig",
+        kid="1234567890",
+    )
     responses.add(
         responses.GET,
         settings.OIDC_OP_JWKS_ENDPOINT,
-        body=json.dumps(
-            {
-                "keys": [
-                    {
-                        "kty": settings.OIDC_RS_ENCRYPTION_KEY_TYPE,
-                        "alg": settings.OIDC_RS_SIGNING_ALGO,
-                        "use": "sig",
-                        "kid": "1234567890",
-                        "n": to_base64url_uint(public_numbers.n).decode("ascii"),
-                        "e": to_base64url_uint(public_numbers.e).decode("ascii"),
-                    }
-                ]
-            }
-        ),
+        body=json.dumps({"keys": [public_jwk]}),
     )
 
     def encrypt_jwt(json_data):
@@ -187,7 +167,7 @@ def test_jwt_resource_server_authentication_class(  # pylint: disable=unused-arg
                 "alg": settings.OIDC_RS_SIGNING_ALGO,
             },
             json_data,
-            RSAKey.import_key(unencrypted_pem_private_key),
+            private_key,
             algorithms=[settings.OIDC_RS_SIGNING_ALGO],
         )
 
@@ -197,7 +177,7 @@ def test_jwt_resource_server_authentication_class(  # pylint: disable=unused-arg
                 "enc": settings.OIDC_RS_ENCRYPTION_ENCODING,
             },
             plaintext=token,
-            public_key=RSAKey.import_key(pem_public_key),
+            public_key=public_key,
             algorithms=[
                 settings.OIDC_RS_ENCRYPTION_ALGO,
                 settings.OIDC_RS_ENCRYPTION_ENCODING,

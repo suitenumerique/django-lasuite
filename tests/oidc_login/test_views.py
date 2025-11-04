@@ -1,17 +1,12 @@
 """Unit tests for the Authentication Views."""
 
-import base64
 import json
 import time
-from hashlib import sha256
 from unittest import mock
 from urllib.parse import parse_qs, urlparse
 
-import jwt as pyjwt
 import pytest
 import responses
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.middleware import SessionMiddleware
@@ -20,6 +15,8 @@ from django.core.exceptions import SuspiciousOperation
 from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import crypto
+from joserfc import jwt
+from joserfc.jwk import RSAKey
 from rest_framework.test import APIClient
 
 from lasuite.oidc_login.views import (
@@ -605,24 +602,9 @@ def test_backchannel_full_flow_no_mock(live_server, settings, oidc_sid):
     settings.OIDC_OP_JWKS_ENDPOINT = f"{issuer}/.well-known/jwks.json"
 
     # Generate RSA keypair and corresponding JWK
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    private_pem = key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    )
-    public_numbers = key.public_key().public_numbers()
-
-    def b64u(x: bytes) -> str:
-        return base64.urlsafe_b64encode(x).rstrip(b"=").decode("ascii")
-
-    n = b64u(public_numbers.n.to_bytes((public_numbers.n.bit_length() + 7) // 8, "big"))
-    e = b64u(public_numbers.e.to_bytes((public_numbers.e.bit_length() + 7) // 8, "big"))
-
-    kid = b64u(sha256(n.encode("ascii")).digest())
-
-    jwk = {"kty": "RSA", "n": n, "e": e, "alg": "RS256", "use": "sig", "kid": kid}
-    jwks = {"keys": [jwk]}
+    key = RSAKey.generate_key(private=True)
+    key.ensure_kid()
+    jwks = {"keys": [key.as_dict(private=False)]}
 
     # Mock the JWKS HTTP endpoint with responses
     responses.add(
@@ -655,11 +637,10 @@ def test_backchannel_full_flow_no_mock(live_server, settings, oidc_sid):
     if oidc_sid:
         payload["sid"] = oidc_sid
 
-    token = pyjwt.encode(
+    token = jwt.encode(
+        {"alg": "RS256", "kid": key.kid, "typ": "logout+jwt"},
         payload,
-        private_pem,
-        algorithm="RS256",
-        headers={"alg": "RS256", "kid": kid, "typ": "logout+jwt"},
+        key,
     )
 
     # Post backchannel logout

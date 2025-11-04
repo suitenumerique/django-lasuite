@@ -33,7 +33,6 @@ dependencies = [
     "joserfc>=1.0.4",
     "requests>=2.32.3",
     "requests-toolbelt>=1.0.0",
-    "PyJWT>=2.10.1",
 ]
 
 [project.urls]
