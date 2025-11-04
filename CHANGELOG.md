@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- 🐛(joserfc) refactor JWT handling with joserfc library updates #35
+
 ## [0.0.17] - 2025-10-27
 
 ### Added

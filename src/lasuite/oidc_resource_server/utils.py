@@ -2,7 +2,7 @@
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from joserfc.jwk import JWKRegistry
+from joserfc import jwk
 
 
 def import_private_key_from_settings():
@@ -32,11 +32,9 @@ def import_private_key_from_settings():
     if not private_key_str:
         raise ImproperlyConfigured("OIDC_RS_PRIVATE_KEY_STR setting is missing or empty.")
 
-    private_key_pem = private_key_str.encode()
-
     try:
-        private_key = JWKRegistry.import_key(
-            private_key_pem,
+        private_key = jwk.import_key(
+            private_key_str,
             key_type=settings.OIDC_RS_ENCRYPTION_KEY_TYPE,
             parameters={"alg": settings.OIDC_RS_ENCRYPTION_ALGO, "use": "enc"},
         )

@@ -30,7 +30,7 @@ dependencies = [
     "django>=5.0",
     "djangorestframework>=3.15.2",
     "mozilla-django-oidc>=4.0.1",
-    "joserfc>=1.0.4",
+    "joserfc>=1.4.0",
     "requests>=2.32.3",
     "requests-toolbelt>=1.0.0",
 ]
