@@ -113,11 +113,12 @@ def test_basic_auth_disabled(oidc_settings):  # pylint: disable=unused-argument
 
 
 @responses.activate
-def test_successful_token_refresh(oidc_settings):  # pylint: disable=unused-argument
-    """Test that the middleware successfully refreshes the token."""
+@pytest.mark.parametrize("http_method", ["get", "post", "put", "patch", "delete", "head", "options"])
+def test_successful_token_refresh(oidc_settings, http_method):  # pylint: disable=unused-argument
+    """Test that the middleware successfully refreshes the token for any HTTP method."""
     user = factories.UserFactory()
 
-    request = RequestFactory().get("/test")
+    request = getattr(RequestFactory(), http_method)("/test")
     request.user = user
 
     get_response = MagicMock()
@@ -166,10 +167,14 @@ def test_non_expired_token(oidc_settings):  # pylint: disable=unused-argument
 
 
 @responses.activate
-def test_refresh_token_request_timeout(oidc_settings):  # pylint: disable=unused-argument
-    """Test that the middleware returns a 401 response when the token refresh request times out."""
+@pytest.mark.parametrize("http_method", ["get", "post", "put", "patch", "delete", "head", "options"])
+def test_refresh_token_request_timeout(oidc_settings, http_method):  # pylint: disable=unused-argument
+    """
+    Test that the middleware returns a 401 response when the token
+    refresh request times out for any HTTP method.
+    """
     user = factories.UserFactory()
-    request = RequestFactory().get("/test")
+    request = getattr(RequestFactory(), http_method)("/test")
     request.user = user
 
     get_response = MagicMock()

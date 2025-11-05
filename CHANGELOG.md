@@ -11,6 +11,7 @@ and this project adheres to
 ### Changed
 
 - 🐛(joserfc) refactor JWT handling with joserfc library updates #35
+- 👔(oidc) consider urls as refreshable no matter the HTTP method
 
 ## [0.0.17] - 2025-10-27
 

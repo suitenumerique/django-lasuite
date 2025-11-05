@@ -12,13 +12,15 @@ import time
 from urllib.parse import quote, urlencode
 
 import requests
+from django.contrib.auth import BACKEND_SESSION_KEY
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.crypto import get_random_string
+from django.utils.module_loading import import_string
 from mozilla_django_oidc.middleware import SessionRefresh
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED
 
-from lasuite.oidc_login.backends import get_oidc_refresh_token, store_tokens
+from lasuite.oidc_login.backends import OIDCAuthenticationBackend, get_oidc_refresh_token, store_tokens
 
 try:
     from mozilla_django_oidc.middleware import (
@@ -82,6 +84,34 @@ class RefreshOIDCAccessToken(SessionRefresh):
 
         query = urlencode(auth_params, quote_via=quote)
         return f"{auth_url}?{query}"
+
+    def is_refreshable_url(self, request):
+        """
+        Take a request and returns whether it triggers a refresh examination.
+
+        In the original implementation [1], the request method is checked to be
+        GET. This is relevant as if the session has expired, the user will be
+        redirected to a login page, that can be problematic for XHR requests.
+        Like the `finish` method documentation explains, in our implementation
+        we consider all requests as XHR requests, so in our case we can safely
+        ignore the request method check as in case of expired token,
+        a 401 status code will be always returned.
+
+        1. https://github.com/mozilla/mozilla-django-oidc/blob/774b140/mozilla_django_oidc/middleware.py#L96-L117
+        """
+        # Do not attempt to refresh the session if the OIDC backend is not used
+        backend_session = request.session.get(BACKEND_SESSION_KEY)
+        is_oidc_enabled = True
+        if backend_session:
+            auth_backend = import_string(backend_session)
+            is_oidc_enabled = issubclass(auth_backend, OIDCAuthenticationBackend)
+
+        return (
+            request.user.is_authenticated
+            and is_oidc_enabled
+            and request.path not in self.exempt_urls
+            and not any(pattern.match(request.path) for pattern in self.exempt_url_patterns)
+        )
 
     def is_expired(self, request):
         """Check whether the access token is expired and needs to be refreshed."""
