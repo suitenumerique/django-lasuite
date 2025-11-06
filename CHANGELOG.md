@@ -8,10 +8,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.18] - 2025-11-06
+
 ### Changed
 
 - 🐛(joserfc) refactor JWT handling with joserfc library updates #35
-- 👔(oidc) consider urls as refreshable no matter the HTTP method
+- 👔(oidc) consider urls as refreshable no matter the HTTP method #42
 
 ## [0.0.17] - 2025-10-27
 
@@ -52,7 +54,7 @@ and this project adheres to
 
 ### Fixed
 
-- 🗃️(malware_detection) use dict callable for MalwareDetection 
+- 🗃️(malware_detection) use dict callable for MalwareDetection
   defaut parameters #26
 
 ## [0.0.12] - 2025-07-22
@@ -147,7 +149,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.17...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.18...main
+[0.0.18]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.18
 [0.0.17]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.17
 [0.0.16]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.16
 [0.0.15]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.15
