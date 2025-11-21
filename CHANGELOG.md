@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.19] - 2025-11-21
+
 ### Changed
 
 - ♻️(resource-server) make token introspection earlier #46
@@ -153,7 +155,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.18...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.19...main
+[0.0.19]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.19
 [0.0.18]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.18
 [0.0.17]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.17
 [0.0.16]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.16
