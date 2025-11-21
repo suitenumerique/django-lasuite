@@ -9,11 +9,16 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import responses
 from django.contrib import auth
-from django.core.exceptions import SuspiciousOperation
+from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from joserfc.errors import InvalidClaimError, InvalidTokenError
 from joserfc.jwt import JWTClaimsRegistry, Token
+from rest_framework.exceptions import AuthenticationFailed
 
-from lasuite.oidc_resource_server.backend import JWTResourceServerBackend, ResourceServerBackend
+from lasuite.oidc_resource_server.backend import (
+    JWTResourceServerBackend,
+    ResourceServerBackend,
+    ResourceServerImproperlyConfiguredBackend,
+)
 from lasuite.oidc_resource_server.clients import AuthorizationServerClient
 
 
@@ -97,13 +102,73 @@ def test_backend_initialization(mock_get_user_model, settings):
     }
 
 
+@patch.object(auth, "get_user_model", return_value="foo")
+def test_jwt_resource_server_backend_initialization(mock_get_user_model, settings):
+    """Test the JWTResourceServerBackend initialization."""
+    settings.OIDC_RS_CLIENT_ID = "client_id"
+    settings.OIDC_RS_CLIENT_SECRET = "client_secret"
+    settings.OIDC_RS_ENCRYPTION_ENCODING = "A256GCM"
+    settings.OIDC_RS_ENCRYPTION_ALGO = "RSA-OAEP"
+    settings.OIDC_RS_SIGNING_ALGO = "RS256"
+    settings.OIDC_RS_SCOPES = ["scopes"]
+
+    settings.OIDC_OP_URL = "https://auth.server.com"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://auth.server.com/introspect"
+    settings.OIDC_OP_JWKS_ENDPOINT = "https://auth.server.com/jwks"
+    settings.OIDC_VERIFY_SSL = True
+    settings.OIDC_TIMEOUT = 10
+    settings.OIDC_PROXY = None
+    backend = JWTResourceServerBackend()
+
+    mock_get_user_model.assert_called_once()
+    assert backend.UserModel == "foo"
+
+    assert backend._introspection_claims_registry.options == {
+        "active": {"essential": True},
+        "client_id": {"essential": False},
+        "scope": {"essential": False},
+    }
+
+
+def test_backend_initialization_missing_client_id(settings):
+    """Test ResourceServerBackend initialization with missing client_id."""
+    settings.OIDC_RS_CLIENT_ID = None
+    settings.OIDC_RS_CLIENT_SECRET = "client_secret"
+
+    settings.OIDC_OP_URL = "https://auth.server.com"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://auth.server.com/introspect"
+    settings.OIDC_VERIFY_SSL = True
+    settings.OIDC_TIMEOUT = 10
+    settings.OIDC_PROXY = None
+
+    with pytest.raises(ImproperlyConfigured, match="some parameters are missing"):
+        ResourceServerBackend()
+
+
+def test_backend_initialization_missing_client_secret(settings):
+    """Test ResourceServerBackend initialization with missing client_secret."""
+    settings.OIDC_RS_CLIENT_ID = "client_id"
+    settings.OIDC_RS_CLIENT_SECRET = None
+
+    settings.OIDC_OP_URL = "https://auth.server.com"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://auth.server.com/introspect"
+    settings.OIDC_VERIFY_SSL = True
+    settings.OIDC_TIMEOUT = 10
+    settings.OIDC_PROXY = None
+
+    with pytest.raises(ImproperlyConfigured, match="some parameters are missing"):
+        ResourceServerBackend()
+
+
 @patch.object(ResourceServerBackend, "get_user", return_value="user")
 def test_get_or_create_user(mock_get_user, resource_server_backend):
     """Test 'get_or_create_user' method."""
     access_token = "access_token"
-    res = resource_server_backend.get_or_create_user(access_token, None, None)
+    id_token = None
+    payload = None
+    res = resource_server_backend.get_or_create_user(access_token, id_token, payload)
 
-    mock_get_user.assert_called_once_with(access_token)
+    mock_get_user.assert_called_once_with(access_token, id_token, payload)
     assert res == "user"
 
 
@@ -379,28 +444,21 @@ def test_verify_user_info_missing_audience(resource_server_backend):
 
 
 def test_resource_server_backend_get_user_success(resource_server_backend):
-    """Test '_get_user' with a successful response."""
+    """Test 'get_user' with a successful response."""
     access_token = "valid_access_token"
-    mock_jwt = Mock()
-    mock_claims = {"sub": "user123", "client_id": "123"}
+    payload = {"sub": "user123", "client_id": "123"}
     mock_user = Mock()
 
-    resource_server_backend._introspect = Mock(return_value=mock_jwt)
-    resource_server_backend._verify_claims = Mock(return_value=mock_claims)
-    resource_server_backend._verify_user_info = Mock(return_value=mock_claims)
     resource_server_backend.UserModel.objects.get = Mock(return_value=mock_user)
 
-    user = resource_server_backend.get_user(access_token)
+    user = resource_server_backend.get_user(access_token, None, payload)
 
     assert user == mock_user
-    resource_server_backend._introspect.assert_called_once_with(access_token)
-    resource_server_backend._verify_claims.assert_called_once_with(mock_jwt)
-    resource_server_backend._verify_user_info.assert_called_once_with(mock_claims)
     resource_server_backend.UserModel.objects.get.assert_called_once_with(sub="user123")
 
 
 def test_get_user_could_not_introspect(resource_server_backend):
-    """Test '_get_user' with introspection failing."""
+    """Test 'get_user_info_with_introspection' with introspection failing."""
     access_token = "valid_access_token"
 
     resource_server_backend._introspect = Mock(side_effect=SuspiciousOperation("Invalid jwt"))
@@ -408,7 +466,7 @@ def test_get_user_could_not_introspect(resource_server_backend):
     resource_server_backend._verify_user_info = Mock()
 
     with pytest.raises(SuspiciousOperation, match="Invalid jwt"):
-        resource_server_backend.get_user(access_token)
+        resource_server_backend.get_user_info_with_introspection(access_token)
 
     resource_server_backend._introspect.assert_called_once_with(access_token)
     resource_server_backend._verify_claims.assert_not_called()
@@ -416,7 +474,7 @@ def test_get_user_could_not_introspect(resource_server_backend):
 
 
 def test_get_user_invalid_introspection_response(resource_server_backend):
-    """Test '_get_user' with an invalid introspection response."""
+    """Test 'get_user_info_with_introspection' with an invalid introspection response."""
     access_token = "valid_access_token"
     mock_jwt = Mock()
 
@@ -425,7 +483,7 @@ def test_get_user_invalid_introspection_response(resource_server_backend):
     resource_server_backend._verify_user_info = Mock()
 
     with pytest.raises(SuspiciousOperation, match="Invalid claims"):
-        resource_server_backend.get_user(access_token)
+        resource_server_backend.get_user_info_with_introspection(access_token)
 
     resource_server_backend._introspect.assert_called_once_with(access_token)
     resource_server_backend._verify_claims.assert_called_once_with(mock_jwt)
@@ -433,41 +491,29 @@ def test_get_user_invalid_introspection_response(resource_server_backend):
 
 
 def test_resource_server_backend_get_user_user_not_found(resource_server_backend):
-    """Test '_get_user' if the user is not found."""
+    """Test 'get_user' if the user is not found."""
     access_token = "valid_access_token"
-    mock_jwt = Mock()
-    mock_claims = {"sub": "user123"}
+    payload = {"sub": "user123"}
 
-    resource_server_backend._introspect = Mock(return_value=mock_jwt)
-    resource_server_backend._verify_claims = Mock(return_value=mock_claims)
-    resource_server_backend._verify_user_info = Mock(return_value=mock_claims)
     resource_server_backend.UserModel.objects.get = Mock(side_effect=resource_server_backend.UserModel.DoesNotExist)
 
     with patch.object(Logger, "debug") as mock_logger_debug:
-        user = resource_server_backend.get_user(access_token)
+        user = resource_server_backend.get_user(access_token, None, payload)
         assert user is None
-        resource_server_backend._introspect.assert_called_once_with(access_token)
-        resource_server_backend._verify_claims.assert_called_once_with(mock_jwt)
-        resource_server_backend._verify_user_info.assert_called_once_with(mock_claims)
         resource_server_backend.UserModel.objects.get.assert_called_once_with(sub="user123")
 
         mock_logger_debug.assert_called_once_with("Login failed: No user with %s found", "user123")
 
 
 def test_get_user_no_user_identification(resource_server_backend):
-    """Test '_get_user' if the response miss a user identification."""
+    """Test 'get_user' if the payload misses a user identification."""
     access_token = "valid_access_token"
-    mock_jwt = Mock()
-    mock_claims = {"token_introspection": {}}
-
-    resource_server_backend._introspect = Mock(return_value=mock_jwt)
-    resource_server_backend._verify_claims = Mock(return_value=mock_claims)
-    resource_server_backend._verify_user_info = Mock(return_value=mock_claims["token_introspection"])
+    payload = {}
 
     expected_message = "User info contained no recognizable user identification"
     with patch.object(Logger, "debug") as mock_logger_debug:
         with pytest.raises(SuspiciousOperation, match=expected_message):
-            resource_server_backend.get_user(access_token)
+            resource_server_backend.get_user(access_token, None, payload)
 
         mock_logger_debug.assert_called_once_with(expected_message)
 
@@ -486,7 +532,7 @@ def test_full_authentication_with_inactive_user(caplog, resource_server_backend)
     )
 
     with pytest.raises(SuspiciousOperation, match="Introspected user is not active"):
-        resource_server_backend.get_or_create_user("access_token", None, None)
+        resource_server_backend.get_user_info_with_introspection("access_token")
 
     assert "Token introspection refused because user is not active" in caplog.text
 
@@ -519,6 +565,144 @@ def test_full_jwt_authentication_with_inactive_user(
     )
 
     with pytest.raises(SuspiciousOperation, match="Introspected user is not active"):
-        jwt_resource_server_backend.get_or_create_user("access_token", None, None)
+        jwt_resource_server_backend.get_user_info_with_introspection("access_token")
 
     assert "Token introspection refused because user is not active" in caplog.text
+
+
+@responses.activate
+def test_get_user_info_with_introspection_success(settings, resource_server_backend):
+    """Test 'get_user_info_with_introspection' with a successful response."""
+    settings.OIDC_RS_AUDIENCE_CLAIM = "client_id"
+
+    responses.post(
+        "https://auth.server.com/introspect",
+        status=200,
+        body=json.dumps(
+            {
+                "iss": "https://auth.server.com",
+                "active": True,
+                "scope": "groups",
+                "client_id": "test_audience",
+                "sub": "user123",
+            }
+        ),
+    )
+
+    user_info = resource_server_backend.get_user_info_with_introspection("access_token")
+
+    assert user_info["sub"] == "user123"
+    assert user_info["client_id"] == "test_audience"
+    assert resource_server_backend.token_origin_audience == "test_audience"
+
+
+def test_introspect_invalid_json(resource_server_backend):
+    """Test '_introspect' method with invalid JSON response."""
+    resource_server_backend._authorization_server_client.get_introspection = Mock(return_value="invalid json {")
+
+    with pytest.raises(SuspiciousOperation, match="Invalid JSON for introspection"):
+        resource_server_backend._introspect("access_token")
+
+
+@patch(
+    "lasuite.oidc_resource_server.utils.import_private_key_from_settings",
+    return_value="private_key",
+)
+def test_jwt_introspect_token_validation_failure(mock_import_private_key, jwt_resource_server_backend):
+    """Test JWT _introspect with token validation failure."""
+    jwt_resource_server_backend._authorization_server_client.get_introspection = Mock(return_value="valid_jwe")
+    jwt_resource_server_backend._decrypt = Mock(return_value="valid_jws")
+    jwt_resource_server_backend._authorization_server_client.import_public_keys = Mock(return_value="public_key_set")
+
+    # Token sans le claim token_introspection
+    jwt_resource_server_backend._decode = Mock(
+        return_value=Token(
+            {},
+            {
+                "aud": "client_id",
+                "iss": "https://auth.server.com",
+                # token_introspection manquant
+            },
+        )
+    )
+
+    with patch.object(Logger, "exception") as mock_logger:
+        with pytest.raises(SuspiciousOperation, match="Failed to validate token's claims"):
+            jwt_resource_server_backend._introspect("access_token")
+
+        # Vérifier que le logger.exception a été appelé
+        mock_logger.assert_called_once()
+
+
+@patch(
+    "lasuite.oidc_resource_server.utils.import_private_key_from_settings",
+    return_value="private_key",
+)
+def test_jwt_introspect_invalid_iss(mock_import_private_key, jwt_resource_server_backend):
+    """Test JWT _introspect with invalid issuer."""
+    jwt_resource_server_backend._authorization_server_client.get_introspection = Mock(return_value="valid_jwe")
+    jwt_resource_server_backend._decrypt = Mock(return_value="valid_jws")
+    jwt_resource_server_backend._authorization_server_client.import_public_keys = Mock(return_value="public_key_set")
+
+    # Token avec un iss invalide
+    jwt_resource_server_backend._decode = Mock(
+        return_value=Token(
+            {},
+            {
+                "aud": "client_id",
+                "iss": "https://wrong.server.com",
+                "token_introspection": {"active": True},
+            },
+        )
+    )
+
+    with pytest.raises(SuspiciousOperation, match="Failed to validate token's claims"):
+        jwt_resource_server_backend._introspect("access_token")
+
+
+@patch(
+    "lasuite.oidc_resource_server.utils.import_private_key_from_settings",
+    return_value="private_key",
+)
+def test_jwt_introspect_invalid_aud(mock_import_private_key, jwt_resource_server_backend):
+    """Test JWT _introspect with invalid audience."""
+    jwt_resource_server_backend._authorization_server_client.get_introspection = Mock(return_value="valid_jwe")
+    jwt_resource_server_backend._decrypt = Mock(return_value="valid_jws")
+    jwt_resource_server_backend._authorization_server_client.import_public_keys = Mock(return_value="public_key_set")
+
+    # Token avec un aud invalide
+    jwt_resource_server_backend._decode = Mock(
+        return_value=Token(
+            {},
+            {
+                "aud": "wrong_client_id",
+                "iss": "https://auth.server.com",
+                "token_introspection": {"active": True},
+            },
+        )
+    )
+
+    with pytest.raises(SuspiciousOperation, match="Failed to validate token's claims"):
+        jwt_resource_server_backend._introspect("access_token")
+
+
+def test_improperly_configured_backend_get_or_create_user():
+    """Test ResourceServerImproperlyConfiguredBackend get_or_create_user raises AuthenticationFailed."""
+    backend = ResourceServerImproperlyConfiguredBackend()
+
+    with pytest.raises(AuthenticationFailed, match="Resource Server is improperly configured"):
+        backend.get_or_create_user("access_token", None, {})
+
+
+def test_improperly_configured_backend_get_user_info_with_introspection():
+    """Test ResourceServerImproperlyConfiguredBackend get_user_info_with_introspection raises AuthenticationFailed."""
+    backend = ResourceServerImproperlyConfiguredBackend()
+
+    with pytest.raises(AuthenticationFailed, match="Resource Server is improperly configured"):
+        backend.get_user_info_with_introspection("access_token")
+
+
+def test_improperly_configured_backend_token_origin_audience():
+    """Test ResourceServerImproperlyConfiguredBackend has token_origin_audience attribute."""
+    backend = ResourceServerImproperlyConfiguredBackend()
+    assert backend.token_origin_audience is None

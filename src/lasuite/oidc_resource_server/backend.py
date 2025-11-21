@@ -9,7 +9,7 @@ from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from joserfc import jwe as jose_jwe
 from joserfc import jwt as jose_jwt
-from joserfc.errors import InvalidClaimError, InvalidTokenError
+from joserfc.errors import InvalidClaimError, InvalidTokenError, MissingClaimError
 from joserfc.jwt import Token
 from joserfc.registry import HeaderParameter
 from requests.exceptions import HTTPError
@@ -72,19 +72,9 @@ class ResourceServerBackend:
         # and store it for further use in the application
         self.token_origin_audience = None
 
-    # pylint: disable=unused-argument
-    def get_or_create_user(self, access_token, id_token, payload):
+    def get_user_info_with_introspection(self, access_token):
         """
-        Maintain API compatibility with OIDCAuthentication class from mozilla-django-oidc.
-
-        Params 'id_token', 'payload' won't be used, and our implementation will only
-        support 'get_user', not 'get_or_create_user'.
-        """
-        return self.get_user(access_token)
-
-    def get_user(self, access_token):
-        """
-        Get user from an access token emitted by the authorization server.
+        Get user info from an access token emitted by the authorization server.
 
         This method will submit the access token to the authorization server for
         introspection, to ensure its validity and obtain the associated metadata.
@@ -103,18 +93,38 @@ class ResourceServerBackend:
         claims = self._verify_claims(jwt)
         user_info = self._verify_user_info(claims)
 
-        sub = user_info.get("sub")
+        self.token_origin_audience = str(user_info[settings.OIDC_RS_AUDIENCE_CLAIM])
+
+        return user_info
+
+    def get_or_create_user(self, access_token, id_token, payload):
+        """
+        Maintain API compatibility with OIDCAuthentication class from mozilla-django-oidc.
+
+        The current implementation does not support user creation, it will come later if needed,
+        or be implemented in project which requires it.
+        """
+        return self.get_user(access_token, id_token, payload)
+
+    # pylint: disable=unused-argument
+    def get_user(self, access_token, id_token, payload):
+        """
+        Get user from an access token emitted by the authorization server.
+
+        We don't use the access token here, as we already have the 'payload' parameter
+        that contains the introspected information.
+        """
+        sub = payload.get("sub")
         if sub is None:
             message = "User info contained no recognizable user identification"
             logger.debug(message)
             raise SuspiciousOperation(message)
+
         try:
             user = self.UserModel.objects.get(sub=sub)
         except self.UserModel.DoesNotExist:
             logger.debug("Login failed: No user with %s found", sub)
             return None
-
-        self.token_origin_audience = str(user_info[settings.OIDC_RS_AUDIENCE_CLAIM])
 
         return user
 
@@ -259,7 +269,7 @@ class ResourceServerBackend:
         """
         try:
             self._introspection_claims_registry.validate(token.claims)
-        except (InvalidClaimError, InvalidTokenError) as err:
+        except (InvalidClaimError, InvalidTokenError, MissingClaimError) as err:
             message = "Failed to validate token's claims"
             logger.debug("%s. Exception:", message, exc_info=True)
             raise SuspiciousOperation(message) from err
@@ -331,7 +341,7 @@ class JWTResourceServerBackend(ResourceServerBackend):
 
         try:
             token_registry.validate(jwt.claims)
-        except (InvalidClaimError, InvalidTokenError) as err:
+        except (InvalidClaimError, InvalidTokenError, MissingClaimError) as err:
             logger.exception("JWTResourceServerBackend: %s", err)
             raise SuspiciousOperation("Failed to validate token's claims") from err
 
@@ -346,5 +356,9 @@ class ResourceServerImproperlyConfiguredBackend:
     token_origin_audience = None
 
     def get_or_create_user(self, access_token, id_token, payload):
+        """Indicate that the Resource Server is improperly configured."""
+        raise AuthenticationFailed("Resource Server is improperly configured")
+
+    def get_user_info_with_introspection(self, access_token):
         """Indicate that the Resource Server is improperly configured."""
         raise AuthenticationFailed("Resource Server is improperly configured")

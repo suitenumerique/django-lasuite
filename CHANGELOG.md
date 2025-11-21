@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- ♻️(resource-server) make token introspection earlier #46
+
 ## [0.0.18] - 2025-11-06
 
 ### Changed
