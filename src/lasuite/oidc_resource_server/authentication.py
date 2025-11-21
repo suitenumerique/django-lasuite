@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @cache
-def get_resource_server_backend() -> ResourceServerBackend:
+def get_resource_server_backend() -> type[ResourceServerBackend]:
     """Return the resource server backend class based on the settings."""
     return import_string(settings.OIDC_RS_BACKEND_CLASS)
 
@@ -36,11 +36,8 @@ class ResourceServerAuthentication(OIDCAuthentication):
 
     def __init__(self):
         """Require authentication to be configured in order to instantiate."""
-        super().__init__()
-
         try:
-            self.backend = get_resource_server_backend()()
-
+            super().__init__(backend=get_resource_server_backend()())
         except ImproperlyConfigured as err:
             message = "Resource Server authentication is disabled"
             logger.debug("%s. Exception: %s", message, err)
