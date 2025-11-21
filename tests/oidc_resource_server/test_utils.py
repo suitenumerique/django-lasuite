@@ -6,7 +6,7 @@ from joserfc.jwk import ECKey, RSAKey
 
 from lasuite.oidc_resource_server.utils import import_private_key_from_settings
 
-PRIVATE_KEY_STR_MOCKED = """-----BEGIN PRIVATE KEY-----
+RSA_PRIVATE_KEY_STR_MOCKED = """-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC3boG1kwEGUYL+
 U58RPrVToIsF9jHB64S6WJIIInPmAclBciXFb6BWG11mbRIgo8ha3WVnC/tGHbXb
 ndiKdrH2vKHOsDhV9AmgHgNgWaUK9L0uuKEb/xMLePYWsYlgzcQJx8RZY7RQyWqE
@@ -36,11 +36,18 @@ MbyqKyC6DAzv4jEEhHaN7oY=
 -----END PRIVATE KEY-----
 """
 
+EC_PRIVATE_KEY_STR_MOCKED = """-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg2b4txis/lwlN0rel
+qIfoiI3Cvh/CayKIRdkDss/JH6ChRANCAASU9fBsor68yGJI99HtEAbbP1spm6ze
+F8kB8c5c8uNrwpdMpd8whM/4nbA9Kh5Jms8fMDQq61Ox8xaVyzy9VW44
+-----END PRIVATE KEY-----
+"""
+
 
 @pytest.mark.parametrize("mocked_private_key", [None, ""])
 def test_import_private_key_from_settings_missing_or_empty_key(settings, mocked_private_key):
     """Should raise an exception if the settings 'OIDC_RS_PRIVATE_KEY_STR' is missing or empty."""
-    settings.OIDC_RS_PRIVATE_KEY_STR = PRIVATE_KEY_STR_MOCKED
+    settings.OIDC_RS_PRIVATE_KEY_STR = RSA_PRIVATE_KEY_STR_MOCKED
     settings.OIDC_RS_PRIVATE_KEY_STR = mocked_private_key
 
     with pytest.raises(
@@ -53,7 +60,7 @@ def test_import_private_key_from_settings_missing_or_empty_key(settings, mocked_
 @pytest.mark.parametrize("mocked_private_key", ["123", "foo", "invalid_key"])
 def test_import_private_key_from_settings_incorrect_key(settings, mocked_private_key):
     """Should raise an exception if the setting 'OIDC_RS_PRIVATE_KEY_STR' has an incorrect value."""
-    settings.OIDC_RS_PRIVATE_KEY_STR = PRIVATE_KEY_STR_MOCKED
+    settings.OIDC_RS_PRIVATE_KEY_STR = RSA_PRIVATE_KEY_STR_MOCKED
     settings.OIDC_RS_ENCRYPTION_KEY_TYPE = "RSA"
     settings.OIDC_RS_ENCRYPTION_ALGO = "RS256"
     settings.OIDC_RS_PRIVATE_KEY_STR = mocked_private_key
@@ -64,7 +71,7 @@ def test_import_private_key_from_settings_incorrect_key(settings, mocked_private
 
 def test_import_private_key_from_settings_success_rsa_key(settings):
     """Should import private key string as an RSA key."""
-    settings.OIDC_RS_PRIVATE_KEY_STR = PRIVATE_KEY_STR_MOCKED
+    settings.OIDC_RS_PRIVATE_KEY_STR = RSA_PRIVATE_KEY_STR_MOCKED
     settings.OIDC_RS_ENCRYPTION_KEY_TYPE = "RSA"
     settings.OIDC_RS_ENCRYPTION_ALGO = "RS256"
     private_key = import_private_key_from_settings()
@@ -73,7 +80,7 @@ def test_import_private_key_from_settings_success_rsa_key(settings):
 
 def test_import_private_key_from_settings_success_ec_key(settings):
     """Should import private key string as an EC key."""
-    settings.OIDC_RS_PRIVATE_KEY_STR = PRIVATE_KEY_STR_MOCKED
+    settings.OIDC_RS_PRIVATE_KEY_STR = EC_PRIVATE_KEY_STR_MOCKED
     settings.OIDC_RS_ENCRYPTION_KEY_TYPE = "EC"
     settings.OIDC_RS_ENCRYPTION_ALGO = "ES256"
 
