@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(backend) keep traces of failed malware analysis tasks
+
 ## [0.0.19] - 2025-11-21
 
 ### Changed
