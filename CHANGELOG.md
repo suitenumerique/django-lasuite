@@ -12,6 +12,7 @@ and this project adheres to
 
 - ✨(backend) keep traces of failed malware analysis tasks
 - ✨(backend) save backend used in a malware analysis task
+- ✨(backend) allow a malware detection backend to reschedule a task
 
 ## [0.0.19] - 2025-11-21
 
