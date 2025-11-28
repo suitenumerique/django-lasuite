@@ -50,7 +50,8 @@ dev = [
     "pytest-django",
     "responses",
     "ruff",
-    "django-lasuite[all]"
+    "django-lasuite[all]",
+    "freezegun>=1.5.5",
 ]
 malware_detection = [
     "celery>=5.0",
