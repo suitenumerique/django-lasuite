@@ -14,6 +14,7 @@ and this project adheres to
 - ✨(backend) save backend used in a malware analysis task
 - ✨(backend) allow a malware detection backend to reschedule a task
 - ✨(malware) add management command to reschedule processing
+- ✨(malware) add an admin view to ease tracking tasks
 
 ## [0.0.19] - 2025-11-21
 
