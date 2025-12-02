@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.20] - 2025-12-02
+
 ### Added
 
 - ✨(backend) keep traces of failed malware analysis tasks
@@ -163,7 +165,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.19...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.20...main
+[0.0.20]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.20
 [0.0.19]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.19
 [0.0.18]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.18
 [0.0.17]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.17
