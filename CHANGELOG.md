@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(marketing) create marketing module
+
 ## [0.0.21] - 2025-12-04
 
 ### Added
