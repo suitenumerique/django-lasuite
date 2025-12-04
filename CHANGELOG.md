@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(malware) save file hash in detection record and callback
+
 ## [0.0.20] - 2025-12-02
 
 ### Added
