@@ -194,7 +194,7 @@ def test_verify_claims_invalid_claim_error(resource_server_backend, mock_token):
 def test_verify_claims_invalid_token_error(resource_server_backend, mock_token):
     """Test '_verify_claims' method with an invalid token error."""
     with patch.object(resource_server_backend._introspection_claims_registry, "validate") as mock_validate:
-        mock_validate.side_effect = InvalidTokenError
+        mock_validate.side_effect = InvalidTokenError("Invalid token")
 
         expected_message = "Failed to validate token's claims"
         with patch.object(Logger, "debug") as mock_logger_debug:

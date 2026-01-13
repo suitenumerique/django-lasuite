@@ -4,6 +4,7 @@ import logging
 from functools import lru_cache
 from json import JSONDecodeError
 
+import jwt
 import requests
 from cryptography.fernet import Fernet
 from django.conf import settings
@@ -170,6 +171,9 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         Agent Connect, which follows the OIDC standard. It forces us to override the
         base method, which deal with 'application/json' response.
 
+        Note: Since mozilla-django-oidc >= 5.0.0, we could rely on the original method
+        if we want to get rid of `self.OIDC_OP_USER_ENDPOINT_FORMAT`.
+
         Returns:
           dict: User details dictionary obtained from the OpenID Connect user endpoint.
 
@@ -196,7 +200,8 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         if _expected_format == OIDCUserEndpointFormat.JWT:
             try:
                 userinfo = self.verify_token(user_response.text)
-            except UnicodeDecodeError as exc:
+            except (UnicodeDecodeError, jwt.DecodeError) as exc:
+                # Since mozilla-django-oidc >= 5.0.0, PyJWT is used, which raises jwt.DecodeError
                 raise SuspiciousOperation("User info response was not valid JWT") from exc
         else:
             try:

@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- ⬆️(oidc) allow use mozilla-django-oidc >5.0.0 with PyJWT
+
 ## [0.0.22] - 2025-12-04
 
 ### Added

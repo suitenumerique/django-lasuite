@@ -5,6 +5,8 @@ import logging
 from importlib import import_module
 from urllib.parse import urlencode
 
+import jwt  # mozilla-django-oidc>=5.0.0
+import mozilla_django_oidc
 from django.conf import settings
 from django.contrib import auth
 from django.contrib.auth import get_user_model
@@ -17,10 +19,11 @@ from django.utils import crypto, timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from joserfc import jws, jwt
-from joserfc.errors import DecodeError, JoseError
-from joserfc.jwk import KeySet
-from joserfc.util import to_bytes
+from joserfc import jws  # mozilla-django-oidc<5.0.0
+from joserfc import jwt as joserfc_jwt  # mozilla-django-oidc<5.0.0
+from joserfc.errors import DecodeError, JoseError  # mozilla-django-oidc<5.0.0
+from joserfc.jwk import KeySet  # mozilla-django-oidc<5.0.0
+from joserfc.util import to_bytes  # mozilla-django-oidc<5.0.0
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
 from mozilla_django_oidc.utils import absolutify, import_from_settings
 from mozilla_django_oidc.views import (
@@ -32,6 +35,8 @@ from mozilla_django_oidc.views import (
 from mozilla_django_oidc.views import (
     OIDCLogoutView as MozillaOIDCOIDCLogoutView,
 )
+
+MOZILLA_OIDC_V4 = mozilla_django_oidc.__version__.startswith("4.")
 
 User = get_user_model()
 
@@ -301,7 +306,76 @@ class OIDCBackChannelLogoutView(View):
         """
         return request.POST.get("logout_token")
 
-    def validate_logout_token(self, logout_token):  # noqa: PLR0911
+    def _get_logout_token_payload_joserfc(self, logout_token):
+        """Decode the logout_token using joserfc with complete validation."""
+        # Check token type (recommended but not mandatory for compatibility)
+        logout_token = to_bytes(logout_token)
+
+        try:
+            obj = jws.extract_compact(logout_token)
+            header = obj.protected
+            token_type = header.get("typ")
+            if token_type and token_type.lower() != self.LOGOUT_TOKEN_TYPE:
+                logger.warning("Unexpected token type: %s (expected: %s)", token_type, self.LOGOUT_TOKEN_TYPE)
+                # Don't reject for compatibility with existing implementations
+        except DecodeError:
+            logger.error("Unable to decode JWT header")
+            return None
+
+        backend = OIDCAuthenticationBackend()
+
+        # Retrieve OIDC provider's public key for signature validation
+        jwks_client = backend.retrieve_matching_jwk(logout_token)
+
+        # Decode token with complete validation
+        keyset = KeySet.import_key_set({"keys": [jwks_client]})
+        decoded_jwt = joserfc_jwt.decode(logout_token, keyset, algorithms=["RS256", "ES256"])
+        claims_requests = joserfc_jwt.JWTClaimsRegistry(
+            now=int(timezone.now().timestamp()),
+            iss={"value": settings.OIDC_OP_URL, "essential": True},
+            aud={"value": backend.OIDC_RP_CLIENT_ID, "essential": True},
+            exp={"essential": True},
+            iat={"essential": True},
+        )
+        claims_requests.validate(decoded_jwt.claims)
+        return decoded_jwt.claims
+
+    def _get_logout_token_payload_pyjwt(self, logout_token):
+        """Decode the logout_token using PyJWT with complete validation."""
+        backend = OIDCAuthenticationBackend()
+
+        # Retrieve OIDC provider's public key for signature validation
+        jwk_key = backend.retrieve_matching_jwk(logout_token)
+
+        # Decode token with complete validation using PyJWT
+        # PyJWT automatically validates exp, iat, iss, and aud when provided
+        decoded = jwt.decode_complete(
+            logout_token,
+            jwk_key.key,
+            algorithms=["RS256", "ES256"],
+            issuer=settings.OIDC_OP_URL,
+            audience=backend.OIDC_RP_CLIENT_ID,
+            options={
+                "verify_signature": True,
+                "verify_exp": True,
+                "verify_iat": True,
+                "verify_iss": True,
+                "verify_aud": True,
+                "require": ["exp", "iat", "iss", "aud"],
+            },
+        )
+
+        # Check token type (recommended but not mandatory for compatibility)
+        token_type = decoded["header"].get("typ")
+        if not token_type or token_type.lower() != self.LOGOUT_TOKEN_TYPE:
+            logger.warning(
+                "Unexpected token type after decoding: %s (expected: %s)", token_type, self.LOGOUT_TOKEN_TYPE
+            )
+            # Don't reject for compatibility with existing implementations
+
+        return decoded["payload"]
+
+    def validate_logout_token(self, logout_token):  # noqa: PLR0911, PLR0912
         """
         Validate and decode the logout_token JWT according to section 2.6 of the spec.
 
@@ -325,37 +399,10 @@ class OIDCBackChannelLogoutView(View):
 
         """
         try:
-            # Check token type (recommended but not mandatory for compatibility)
-            logout_token = to_bytes(logout_token)
-
-            try:
-                obj = jws.extract_compact(logout_token)
-                header = obj.protected
-                token_type = header.get("typ")
-                if token_type and token_type.lower() != self.LOGOUT_TOKEN_TYPE:
-                    logger.warning("Unexpected token type: %s (expected: %s)", token_type, self.LOGOUT_TOKEN_TYPE)
-                    # Don't reject for compatibility with existing implementations
-            except DecodeError:
-                logger.error("Unable to decode JWT header")
-                return None
-
-            backend = OIDCAuthenticationBackend()
-
-            # Retrieve OIDC provider's public key for signature validation
-            jwks_client = backend.retrieve_matching_jwk(logout_token)
-
-            # Decode token with complete validation
-            keyset = KeySet.import_key_set({"keys": [jwks_client]})
-            decoded_jwt = jwt.decode(logout_token, keyset, algorithms=["RS256", "ES256"])
-            claims_requests = jwt.JWTClaimsRegistry(
-                now=int(timezone.now().timestamp()),
-                iss={"value": settings.OIDC_OP_URL, "essential": True},
-                aud={"value": backend.OIDC_RP_CLIENT_ID, "essential": True},
-                exp={"essential": True},
-                iat={"essential": True},
-            )
-            claims_requests.validate(decoded_jwt.claims)
-            payload = decoded_jwt.claims
+            if MOZILLA_OIDC_V4:
+                payload = self._get_logout_token_payload_joserfc(logout_token)
+            else:
+                payload = self._get_logout_token_payload_pyjwt(logout_token)
 
             # Validation according to the spec (section 2.6)
 
@@ -389,6 +436,18 @@ class OIDCBackChannelLogoutView(View):
 
         except JoseError as e:
             logger.exception("Invalid JWT token: %s", e)
+            return None
+        except jwt.DecodeError as e:
+            logger.exception("Invalid JWT token: %s", e)
+            return None
+        except jwt.ExpiredSignatureError as e:
+            logger.exception("JWT token has expired: %s", e)
+            return None
+        except jwt.InvalidIssuerError as e:
+            logger.exception("Invalid issuer: %s", e)
+            return None
+        except jwt.InvalidAudienceError as e:
+            logger.exception("Invalid audience: %s", e)
             return None
         except Exception as e:
             logger.exception("Error validating token: %s", e)

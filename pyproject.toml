@@ -31,7 +31,8 @@ dependencies = [
     "django>=5.0",
     "djangorestframework>=3.15.2",
     "mozilla-django-oidc>=4.0.1",
-    "joserfc>=1.4.0",
+    "PyJWT>=2.8.0", # mozilla-django-oidc>=5.0.0
+    "joserfc>=1.4.0", # mozilla-django-oidc<5.0.0
     "requests>=2.32.3",
     "requests-toolbelt>=1.0.0",
 ]

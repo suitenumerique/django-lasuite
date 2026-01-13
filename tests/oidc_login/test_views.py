@@ -52,6 +52,7 @@ def test_view_logout_anonymous(settings):
 def test_view_logout(mocked_oidc_logout_url, settings):
     """Authenticated users should be redirected to OIDC provider for logout."""
     settings.ALLOW_LOGOUT_GET_METHOD = True
+    settings.LOGOUT_REDIRECT_URL = "/example-logout"
 
     user = factories.UserFactory()
 
