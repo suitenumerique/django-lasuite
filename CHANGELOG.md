@@ -11,6 +11,7 @@ and this project adheres to
 ### Changed
 
 - ⬆️(oidc) allow use mozilla-django-oidc >5.0.0 with PyJWT
+- ♻️(malware) reuse existing file_hash when rescheduling a task
 
 ## [0.0.22] - 2025-12-04
 
