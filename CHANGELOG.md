@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.23] - 2026-01-14
+
 ### Changed
 
 - ⬆️(oidc) allow use mozilla-django-oidc >5.0.0 with PyJWT
@@ -182,7 +184,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.22...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.23...main
+[0.0.23]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.23
 [0.0.22]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.22
 [0.0.21]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.21
 [0.0.20]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.20
