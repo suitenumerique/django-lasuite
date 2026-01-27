@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🐛(oidc) use correct session key for token expiration check #56
+
 ## [0.0.23] - 2026-01-14
 
 ### Changed

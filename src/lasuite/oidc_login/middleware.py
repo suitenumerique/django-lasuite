@@ -119,7 +119,7 @@ class RefreshOIDCAccessToken(SessionRefresh):
             logger.debug("request is not refreshable")
             return False
 
-        expiration = request.session.get("oidc_token_expiration", 0)
+        expiration = request.session.get("oidc_id_token_expiration", 0)
         now = time.time()
         if expiration > now:
             # The id_token is still valid, so we don't have to do anything.
@@ -220,5 +220,10 @@ class RefreshOIDCAccessToken(SessionRefresh):
         access_token = token_info.get("access_token")
         refresh_token = token_info.get("refresh_token")
         store_tokens(request.session, access_token, id_token, refresh_token)
+
+        # Update the token expiration time so subsequent requests don't try to refresh again
+        expires_in = token_info.get("expires_in")
+        if expires_in:
+            request.session["oidc_id_token_expiration"] = time.time() + expires_in
 
         return None
