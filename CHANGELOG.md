@@ -10,6 +10,7 @@ and this project adheres to
 
 ### Added
 
+- 💄(admin) allow admin header color customization
 - 🍱(core) vendor mime.types file i/o fetching from Apache
 
 ## [0.0.24] - 2026-02-04

@@ -1,0 +1,1 @@
+"""LaSuite custom admin site."""
