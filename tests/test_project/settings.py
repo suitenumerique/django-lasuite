@@ -1,5 +1,6 @@
 """Django settings for test project."""
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -15,13 +16,13 @@ ALLOWED_HOSTS = ["*"]
 
 # Application definition
 INSTALLED_APPS = [
-    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "lasuite.malware_detection",
+    "lasuite.custom_admin",
     "test_project.user",
 ]
 
@@ -40,7 +41,10 @@ ROOT_URLCONF = "test_project.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [
+            os.path.join(BASE_DIR, "templates"),
+            os.path.join(BASE_DIR, "admin", "templates"),  # enforce load before Django's admin
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -135,3 +139,7 @@ OIDC_RS_ENCRYPTION_ENCODING = "A256GCM"
 OIDC_RS_ENCRYPTION_ALGO = "RSA-OAEP"
 OIDC_RS_SIGNING_ALGO = "ES256"
 OIDC_RS_SCOPES = ["groups"]
+
+# Django Admin
+ADMIN_HEADER_BACKGROUND = "#0f5132"
+ADMIN_HEADER_COLOR = "#ffffff"
