@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- 🍱(core) vendor mime.types file i/o fetching from Apache
+
 ## [0.0.24] - 2026-02-04
 
 ### Changed
