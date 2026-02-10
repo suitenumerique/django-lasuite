@@ -302,7 +302,7 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         except self.UserModel.DoesNotExist:
             if email and settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION:
                 try:
-                    return self.UserModel.objects.get(email=email)
+                    return self.UserModel.objects.get(email__iexact=email)
                 except self.UserModel.DoesNotExist:
                     pass
         return None

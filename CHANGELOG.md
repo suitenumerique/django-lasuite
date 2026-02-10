@@ -8,13 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- 🚸(oidc) ignore case when fallback on email #61
+
 ### Fixed
 
 - 🐛(oidc) use correct session key for token expiration check #56
 
 ## [0.0.23] - 2026-01-14
 
-### Changed
+
 
 - ⬆️(oidc) allow use mozilla-django-oidc >5.0.0 with PyJWT
 - ♻️(malware) reuse existing file_hash when rescheduling a task

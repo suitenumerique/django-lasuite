@@ -162,6 +162,25 @@ def test_authentication_getter_existing_user_via_email(django_assert_num_queries
     assert user == db_user
 
 
+def test_authentication_getter_existing_user_via_email_case(django_assert_num_queries, monkeypatch):
+    """
+    If an existing user doesn't match the sub but matches the email with different case,
+    the user should be returned.
+    """
+    klass = OIDCAuthenticationBackend()
+    db_user = factories.UserFactory(email="Some.User@example.com")
+
+    def get_userinfo_mocked(*args):
+        return {"sub": "123", "email": "sOmE.useR@example.com"}
+
+    monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", get_userinfo_mocked)
+
+    with django_assert_num_queries(3):  # user by email + user by sub + update sub
+        user = klass.get_or_create_user(access_token="test-token", id_token=None, payload=None)
+
+    assert user == db_user
+
+
 def test_authentication_getter_existing_user_no_fallback_to_email(settings, monkeypatch):
     """
     When the "OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION" setting is set to False,
