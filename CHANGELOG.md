@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.25] - 2026-03-10
+
 ### Added
 
 - 💄(admin) allow admin header color customization
@@ -199,7 +201,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.24...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.25...main
+[0.0.25]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.25
 [0.0.24]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.24
 [0.0.23]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.23
 [0.0.22]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.22
