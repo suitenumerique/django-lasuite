@@ -23,7 +23,7 @@ class AuthorizationServerClient:
     _header_accept = "application/json"
 
     def __init__(self):
-        """Require at a minimum url, url_jwks and url_introspection."""
+        """Require at a minimum url and url_introspection."""
         self.url = settings.OIDC_OP_URL
         self._verify_ssl = settings.OIDC_VERIFY_SSL
         self._timeout = settings.OIDC_TIMEOUT
