@@ -20,10 +20,13 @@ and this project adheres to
 ### Changed
 
 - 🚸(oidc) ignore case when fallback on email #61
+-  🔊(oidc) improve logging for improperly configured authorization clients #66
 
 ### Fixed
 
 - 🐛(oidc) use correct session key for token expiration check #56
+- 📝(oidc) fix misleading docstring in AuthorizationServerClient #66
+- 📝(oidc) document required oidc_op_url for resource server configuration #66
 
 ## [0.0.23] - 2026-01-14
 
