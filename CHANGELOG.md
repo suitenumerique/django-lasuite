@@ -20,6 +20,7 @@ and this project adheres to
 ### Changed
 
 - 🚸(oidc) ignore case when fallback on email #61
+-  🔊(oidc) improve logging for improperly configured authorization clients #66
 
 ### Fixed
 

@@ -30,8 +30,19 @@ class AuthorizationServerClient:
         self._proxy = settings.OIDC_PROXY
         self._url_introspection = settings.OIDC_OP_INTROSPECTION_ENDPOINT
 
-        if not self.url or not self._url_introspection:
-            raise ImproperlyConfigured(f"Could not instantiate {self.__class__.__name__}, some parameters are missing.")
+        missing = [
+            name
+            for name, value in [
+                ("OIDC_OP_URL", self.url),
+                ("OIDC_OP_INTROSPECTION_ENDPOINT", self._url_introspection),
+            ]
+            if not value
+        ]
+
+        if missing:
+            raise ImproperlyConfigured(
+                f"Could not instantiate {self.__class__.__name__}: missing required settings: {', '.join(missing)}"
+            )
 
     @property
     def _introspection_headers(self):
@@ -90,7 +101,9 @@ class JWTAuthorizationServerClient(AuthorizationServerClient):
         self._url_jwks = settings.OIDC_OP_JWKS_ENDPOINT
 
         if not self._url_jwks:
-            raise ImproperlyConfigured(f"Could not instantiate {self.__class__.__name__}, some parameters are missing.")
+            raise ImproperlyConfigured(
+                f"Could not instantiate {self.__class__.__name__}, OIDC_OP_JWKS_ENDPOINT is missing."
+            )
 
     def get_jwks(self):
         """Retrieve Authorization Server JWKS."""
