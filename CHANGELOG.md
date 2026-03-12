@@ -24,6 +24,7 @@ and this project adheres to
 ### Fixed
 
 - 🐛(oidc) use correct session key for token expiration check #56
+- 📝(oidc) fix misleading docstring in AuthorizationServerClient #66
 
 ## [0.0.23] - 2026-01-14
 
