@@ -110,7 +110,7 @@ and this project adheres to
 ### Fixed
 
 - 🗃️(malware_detection) use dict callable for MalwareDetection
-  defaut parameters #26
+  default parameters #26
 
 ## [0.0.12] - 2025-07-22
 
