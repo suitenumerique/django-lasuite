@@ -42,6 +42,7 @@ OIDC_RP_CLIENT_ID = "your-client-id"
 OIDC_RP_CLIENT_SECRET = "your-client-secret"
 
 # Authorization server endpoints
+OIDC_OP_URL = "https://your-provider.com/"
 OIDC_OP_TOKEN_ENDPOINT = "https://your-provider.com/token"
 OIDC_OP_USER_ENDPOINT = "https://your-provider.com/userinfo"
 OIDC_OP_INTROSPECTION_ENDPOINT = "https://your-provider.com/token/introspect"
