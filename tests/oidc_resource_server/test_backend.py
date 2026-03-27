@@ -97,7 +97,7 @@ def test_backend_initialization(mock_get_user_model, settings):
     assert backend._introspection_claims_registry.options == {
         "active": {"essential": True},
         "client_id": {"essential": False},
-        "iss": {"essential": True, "value": "https://auth.server.com"},
+        "iss": {"essential": False, "value": "https://auth.server.com"},
         "scope": {"essential": False},
     }
 

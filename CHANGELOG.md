@@ -12,6 +12,10 @@ and this project adheres to
 
 - ✨(oidc) allow login_hint param #69
 
+### Fixed
+
+- 🐛(oidc) make `iss` claim optional in introspection response validation
+
 ## [0.0.25] - 2026-03-10
 
 ### Added
