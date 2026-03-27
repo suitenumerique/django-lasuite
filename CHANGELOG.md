@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🐛(oidc) make `iss` claim optional in introspection response validation
+
 ## [0.0.25] - 2026-03-10
 
 ### Added
