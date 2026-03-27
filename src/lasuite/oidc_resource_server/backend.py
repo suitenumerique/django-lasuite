@@ -59,7 +59,7 @@ class ResourceServerBackend:
             )
 
         self._introspection_claims_registry = jose_jwt.JWTClaimsRegistry(
-            iss={"essential": True, "value": self._authorization_server_client.url},
+            iss={"essential": False, "value": self._authorization_server_client.url},
             active={"essential": True},
             # scope is optional in RFC, but mandatory here, it may be missing if `active` is False
             scope={"essential": False},  # content validated in _verify_user_info
