@@ -332,6 +332,61 @@ def test_view_authentication_silent_true(settings, mocked_extra_params_setting):
     assert request.session.get("silent") is True
 
 
+@pytest.mark.parametrize("mocked_extra_params_setting", [{"foo": 123}, {}, None])
+def test_view_authentication_login_hint(settings, mocked_extra_params_setting):
+    """If 'login_hint' parameter is set, this login_hint should be forwarded to the IDP."""
+    settings.OIDC_AUTH_REQUEST_EXTRA_PARAMS = mocked_extra_params_setting
+
+    user = factories.UserFactory()
+
+    request = RequestFactory().request()
+    request.user = user
+    request.GET = {"login_hint": "foo@bar.com"}
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    view = OIDCAuthenticationRequestView()
+    extra_params = view.get_extra_params(request)
+    expected_params = {"login_hint": "foo@bar.com"}
+
+    assert (
+        extra_params == {**mocked_extra_params_setting, **expected_params}
+        if mocked_extra_params_setting
+        else expected_params
+    )
+
+
+@pytest.mark.parametrize("mocked_extra_params_setting", [{"foo": 123}, {}, None])
+def test_view_authentication_login_hint_and_silent_true(settings, mocked_extra_params_setting):
+    """
+    If 'login_hint' parameter is set, and 'silent' parameter is set to True:
+    - the 'login_hint' should be forwarded to the IDP,
+    - the silent login should be triggered.
+    """
+    settings.OIDC_AUTH_REQUEST_EXTRA_PARAMS = mocked_extra_params_setting
+
+    user = factories.UserFactory()
+
+    request = RequestFactory().request()
+    request.user = user
+    request.GET = {"login_hint": "foo@bar.com", "silent": "true"}
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    view = OIDCAuthenticationRequestView()
+    extra_params = view.get_extra_params(request)
+    expected_params = {"login_hint": "foo@bar.com", "prompt": "none"}
+
+    assert (
+        extra_params == {**mocked_extra_params_setting, **expected_params}
+        if mocked_extra_params_setting
+        else expected_params
+    )
+    assert request.session.get("silent") is True
+
+
 @mock.patch.object(
     OIDCAuthenticationCallbackView,
     "failure_url",

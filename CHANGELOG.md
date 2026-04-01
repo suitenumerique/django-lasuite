@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- ✨(oidc) allow login_hint param #69
+
 ## [0.0.25] - 2026-03-10
 
 ### Added
