@@ -758,9 +758,14 @@ class OIDCAuthenticationRequestView(MozillaOIDCAuthenticationRequestView):
         if extra_params is None:
             extra_params = {}
 
-        if request.GET.get("silent", "").lower() == "true":
+        silent = request.GET.get("silent", "").lower() == "true"
+        login_hint = request.GET.get("login_hint", "")
+        if silent or login_hint:
             extra_params = copy.deepcopy(extra_params)
-            extra_params.update({"prompt": "none"})
-            request.session["silent"] = True
+            if silent:
+                extra_params.update({"prompt": "none"})
+                request.session["silent"] = True
+            if login_hint:
+                extra_params.update({"login_hint": login_hint})
 
         return extra_params
