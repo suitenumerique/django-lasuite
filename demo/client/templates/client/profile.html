@@ -1,0 +1,50 @@
+{% extends "client/base.html" %}
+
+{% block title %}Profile - Django La Suite Demo{% endblock %}
+
+{% block content %}
+<h1>Your Profile</h1>
+
+<div class="info-box">
+    This page displays the user information stored locally after OIDC authentication.
+</div>
+
+<table>
+    <tr>
+        <th>Field</th>
+        <th>Value</th>
+    </tr>
+    <tr>
+        <td>sub</td>
+        <td>{{ user.sub }}</td>
+    </tr>
+    <tr>
+        <td>name</td>
+        <td>{{ user.name }}</td>
+    </tr>
+    <tr>
+        <td>email</td>
+        <td>{{ user.email }}</td>
+    </tr>
+    <tr>
+        <td>is_active</td>
+        <td>{{ user.is_active }}</td>
+    </tr>
+</table>
+
+<h2>Session Tokens</h2>
+{% if request.session.oidc_access_token %}
+    <div class="info-box">
+        Access token is present in the session (first 20 chars):
+        <code>{{ request.session.oidc_access_token|slice:":20" }}...</code>
+    </div>
+{% else %}
+    <div class="warning-box">
+        No access token found in session.
+    </div>
+{% endif %}
+
+<a href="{% url 'resource_server_me' %}" class="btn btn-success">
+    Call Resource Server /api/v1.0/users/me/
+</a>
+{% endblock %}

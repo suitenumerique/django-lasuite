@@ -1,0 +1,30 @@
+{% extends "client/base.html" %}
+
+{% block title %}Resource Server Response - Django La Suite Demo{% endblock %}
+
+{% block content %}
+<h1>Resource Server Response</h1>
+
+<p>
+    This page shows the result of calling
+    <code>{{ request.scheme }}://&lt;resource-server&gt;/api/v1.0/users/me/</code>
+    with the user's access token.
+</p>
+
+{% if error %}
+    <div class="error-box">
+        <strong>HTTP {{ status_code }}</strong><br>
+        The resource server returned an error.
+    </div>
+{% else %}
+    <div class="info-box">
+        <strong>HTTP {{ status_code }} OK</strong><br>
+        The resource server responded successfully.
+    </div>
+{% endif %}
+
+<h2>Response Body</h2>
+<pre>{{ data|pprint }}</pre>
+
+<a href="{% url 'home' %}" class="btn">Back to Home</a>
+{% endblock %}

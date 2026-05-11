@@ -1,0 +1,83 @@
+{% extends "client/base.html" %}
+
+{% block title %}Home - Django La Suite Demo{% endblock %}
+
+{% block content %}
+<h1>Django La Suite Demo</h1>
+
+<p>
+    This demo application showcases how to use <code>django-lasuite</code> to build
+    an OIDC client that authenticates users and then consumes a protected resource
+    server API.
+</p>
+
+{% if user.is_authenticated %}
+    <div class="info-box">
+        <strong>Welcome, {{ user.name }}!</strong><br>
+        You are authenticated via OIDC.
+    </div>
+
+    <h2>Try it out</h2>
+    <a href="{% url 'profile' %}" class="btn">View your profile</a>
+    <a href="{% url 'resource_server_me' %}" class="btn btn-success">
+        Call Resource Server /api/v1.0/users/me/
+    </a>
+{% else %}
+    <div class="warning-box">
+        You are not logged in. Please authenticate to test the resource server client.
+    </div>
+
+    <a href="/oidc/authenticate/" class="btn">Log in with OIDC</a>
+{% endif %}
+
+<h2>How it works</h2>
+<ol>
+    <li>User clicks <strong>Log in with OIDC</strong> and is redirected to the OIDC provider.</li>
+    <li>After successful authentication, the provider redirects back with an authorization code.</li>
+    <li>The demo app exchanges the code for tokens (access, ID, and refresh tokens).</li>
+    <li>Tokens are stored in the session so they can be reused.</li>
+    <li>When calling the resource server, the access token is sent in the
+        <code>Authorization: Bearer &lt;token&gt;</code> header.</li>
+</ol>
+
+<h2>Configuration</h2>
+<p>
+    All OIDC settings are loaded from environment variables. See
+    <code>demo/settings.py</code> for the full list of configurable options.
+</p>
+
+<table>
+    <tr>
+        <th>Environment Variable</th>
+        <th>Purpose</th>
+    </tr>
+    <tr>
+        <td><code>OIDC_OP_URL</code></td>
+        <td>OIDC provider base URL</td>
+    </tr>
+    <tr>
+        <td><code>OIDC_OP_AUTHORIZATION_ENDPOINT</code></td>
+        <td>Authorization endpoint</td>
+    </tr>
+    <tr>
+        <td><code>OIDC_OP_TOKEN_ENDPOINT</code></td>
+        <td>Token endpoint</td>
+    </tr>
+    <tr>
+        <td><code>OIDC_OP_USER_ENDPOINT</code></td>
+        <td>UserInfo endpoint</td>
+    </tr>
+    <tr>
+        <td><code>OIDC_RP_CLIENT_ID</code></td>
+        <td>Client ID</td>
+    </tr>
+    <tr>
+        <td><code>OIDC_RP_CLIENT_SECRET</code></td>
+        <td>Client secret</td>
+    </tr>
+    <tr>
+        <td><code>RESOURCE_SERVER_BASE_URL</code></td>
+        <td>Base URL of the resource server to consume</td>
+    </tr>
+</table>
+{% endblock %}
