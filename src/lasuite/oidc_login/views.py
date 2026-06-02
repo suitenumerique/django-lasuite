@@ -749,23 +749,27 @@ class OIDCAuthenticationRequestView(MozillaOIDCAuthenticationRequestView):
 
     def get_extra_params(self, request):
         """
-        Handle 'prompt' extra parameter for the silent login flow.
+        Build the extra parameters forwarded to the IdP authentication request.
 
-        Silent login (?silent=true) adds prompt=none to check for active
-        SSO session without displaying UI.
+        - Silent login (?silent=true) adds prompt=none to check for an active
+          SSO session without displaying any UI.
+        - Any query parameter listed in the OIDC_AUTH_REQUEST_FORWARDED_PARAMS
+          setting (defaults to ["login_hint"]) is forwarded as-is to the IdP
+          when present in the incoming request.
         """
         extra_params = self.get_settings("OIDC_AUTH_REQUEST_EXTRA_PARAMS", None)
         if extra_params is None:
             extra_params = {}
 
         silent = request.GET.get("silent", "").lower() == "true"
-        login_hint = request.GET.get("login_hint", "")
-        if silent or login_hint:
+        forwarded_params = self.get_settings("OIDC_AUTH_REQUEST_FORWARDED_PARAMS", ["login_hint"])
+        forwarded = {param: request.GET[param] for param in forwarded_params if request.GET.get(param)}
+
+        if silent or forwarded:
             extra_params = copy.deepcopy(extra_params)
+            extra_params.update(forwarded)
             if silent:
                 extra_params.update({"prompt": "none"})
                 request.session["silent"] = True
-            if login_hint:
-                extra_params.update({"login_hint": login_hint})
 
         return extra_params

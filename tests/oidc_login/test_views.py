@@ -333,8 +333,11 @@ def test_view_authentication_silent_true(settings, mocked_extra_params_setting):
 
 
 @pytest.mark.parametrize("mocked_extra_params_setting", [{"foo": 123}, {}, None])
-def test_view_authentication_login_hint(settings, mocked_extra_params_setting):
-    """If 'login_hint' parameter is set, this login_hint should be forwarded to the IDP."""
+def test_view_authentication_default_forwarded_params(settings, mocked_extra_params_setting):
+    """
+    By default, forwarded params settings is set to ['login_hint'],
+    so if this parameter is set, this login_hint should be forwarded to the IDP.
+    """
     settings.OIDC_AUTH_REQUEST_EXTRA_PARAMS = mocked_extra_params_setting
 
     user = factories.UserFactory()
@@ -358,10 +361,10 @@ def test_view_authentication_login_hint(settings, mocked_extra_params_setting):
 
 
 @pytest.mark.parametrize("mocked_extra_params_setting", [{"foo": 123}, {}, None])
-def test_view_authentication_login_hint_and_silent_true(settings, mocked_extra_params_setting):
+def test_view_authentication_default_forwarded_params_and_silent_true(settings, mocked_extra_params_setting):
     """
-    If 'login_hint' parameter is set, and 'silent' parameter is set to True:
-    - the 'login_hint' should be forwarded to the IDP,
+    If forwaded parameters are set, and 'silent' parameter is set to True:
+    - params should be forwarded to the IDP,
     - the silent login should be triggered.
     """
     settings.OIDC_AUTH_REQUEST_EXTRA_PARAMS = mocked_extra_params_setting
@@ -385,6 +388,43 @@ def test_view_authentication_login_hint_and_silent_true(settings, mocked_extra_p
         else expected_params
     )
     assert request.session.get("silent") is True
+
+
+def test_view_authentication_forwarded_params_custom(settings):
+    """Query parameters listed in OIDC_AUTH_REQUEST_FORWARDED_PARAMS should be forwarded to the IdP."""
+    settings.OIDC_AUTH_REQUEST_EXTRA_PARAMS = None
+    settings.OIDC_AUTH_REQUEST_FORWARDED_PARAMS = ["login_hint", "idp_hint"]
+
+    request = RequestFactory().request()
+    request.user = factories.UserFactory()
+    # 'unlisted' is dropped because it is not part of the forwarded params
+    request.GET = {"login_hint": "foo@bar.com", "idp_hint": "some-idp", "unlisted": "nope"}
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    view = OIDCAuthenticationRequestView()
+    extra_params = view.get_extra_params(request)
+
+    assert extra_params == {"login_hint": "foo@bar.com", "idp_hint": "some-idp"}
+
+
+def test_view_authentication_forwarded_params_empty(settings):
+    """An empty OIDC_AUTH_REQUEST_FORWARDED_PARAMS setting should disable any forwarding."""
+    settings.OIDC_AUTH_REQUEST_EXTRA_PARAMS = None
+    settings.OIDC_AUTH_REQUEST_FORWARDED_PARAMS = []
+
+    request = RequestFactory().request()
+    request.user = factories.UserFactory()
+    request.GET = {"login_hint": "foo@bar.com"}
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    view = OIDCAuthenticationRequestView()
+    extra_params = view.get_extra_params(request)
+
+    assert extra_params == {}
 
 
 @mock.patch.object(

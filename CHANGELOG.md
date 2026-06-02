@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(oidc) allow to configure forwarded params
+
 ## [0.0.26] - 2026-04-03
 
 ### Changed

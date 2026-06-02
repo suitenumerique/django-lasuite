@@ -40,6 +40,7 @@ OIDC_USERINFO_FULLNAME_FIELDS = ["first_name", "last_name"]  # Fields used to co
 OIDC_USERINFO_ESSENTIAL_CLAIMS = ["sub", "last_name"]  # Claims required for user identification, defaults to `[]`
 OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = True  # Allow fallback to email for user identification
 OIDC_CREATE_USER = True  # Automatically create users if they don't exist, defaults to `True`
+OIDC_AUTH_REQUEST_FORWARDED_PARAMS = ["login_hint"] # Forwardable query parameters defaults to `['login_hint'] `
 ```
 
 ### URLs
