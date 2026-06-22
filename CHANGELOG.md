@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.27] - 2026-06-22
+
 ### Added
 
 - ✨(oidc) allow to configure forwarded params
@@ -218,7 +220,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.26...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.27...main
+[0.0.27]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.27
 [0.0.26]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.26
 [0.0.25]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.25
 [0.0.24]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.24
