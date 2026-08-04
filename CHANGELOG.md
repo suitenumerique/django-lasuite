@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(malware) add ICAP backend to scan files with an ICAP-compatible 
+  antivirus engine
+
 ### Fixed
 
 - 🔇(marketing) remove debug print leaking PII in Brevo backend
