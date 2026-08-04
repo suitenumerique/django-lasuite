@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(malware) add ICAP backend to scan files with an ICAP-compatible antivirus engine
+
 ## [0.0.29] - 2026-08-25
 
 ### Changed
