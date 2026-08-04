@@ -51,6 +51,9 @@ uv.lock
 *.swp
 *.swo
 
+# Worktrees
+.worktrees/
+
 # OS specific files
 .DS_Store
 Thumbs.db
