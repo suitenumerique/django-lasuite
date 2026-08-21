@@ -16,7 +16,9 @@ OIDC_STORE_ACCESS_TOKEN = True  # Store the access token in the session
 OIDC_STORE_REFRESH_TOKEN = True  # Store the encrypted refresh token in the session
 
 # Required for refresh token encryption
-OIDC_STORE_REFRESH_TOKEN_KEY = "your-32-byte-encryption-key=="  # Must be a valid Fernet key (32 url-safe base64-encoded bytes)
+OIDC_STORE_REFRESH_TOKEN_KEY = (
+    "your-32-byte-encryption-key=="  # Must be a valid Fernet key (32 url-safe base64-encoded bytes)
+)
 ```
 
 ### Purpose of Each Setting
@@ -33,6 +35,7 @@ You can generate a secure Fernet key using Python:
 
 ```python
 from cryptography.fernet import Fernet
+
 key = Fernet.generate_key()
 print(key.decode())  # Add this value to your settings
 ```
@@ -45,19 +48,20 @@ Once you have configured these settings, your application can use the stored tok
 import requests
 from django.http import JsonResponse
 
+
 def call_resource_server(request):
     # Get the access token from the session
-    access_token = request.session.get('oidc_access_token')
-    
+    access_token = request.session.get("oidc_access_token")
+
     if not access_token:
-        return JsonResponse({'error': 'Not authenticated'}, status=401)
-    
+        return JsonResponse({"error": "Not authenticated"}, status=401)
+
     # Make an authenticated request to the resource server
     response = requests.get(
-        'https://resource-server.example.com/api/resource',
-        headers={'Authorization': f'Bearer {access_token}'},
+        "https://resource-server.example.com/api/resource",
+        headers={"Authorization": f"Bearer {access_token}"},
     )
-    
+
     return JsonResponse(response.json())
 ```
 
@@ -70,17 +74,17 @@ Request the access token refresh only on specific views using the `refresh_oidc_
 ```python
 from lasuite.oidc_login.decorators import refresh_oidc_access_token
 
+
 class SomeViewSet(GenericViewSet):
-    
     @method_decorator(refresh_oidc_access_token)
     def some_action(self, request):
         # Your action logic here
-        
+
         # The call to the resource server
-        access_token = request.session.get('oidc_access_token')
+        access_token = request.session.get("oidc_access_token")
         requests.get(
-            'https://resource-server.example.com/api/resource',
-            headers={'Authorization': f'Bearer {access_token}'},
+            "https://resource-server.example.com/api/resource",
+            headers={"Authorization": f"Bearer {access_token}"},
         )
 ```
 
@@ -95,7 +99,7 @@ You can also use the `RefreshOIDCAccessToken` middleware to automatically refres
 # Add to your MIDDLEWARE setting
 MIDDLEWARE = [
     # Other middleware...
-    'lasuite.oidc_login.middleware.RefreshOIDCAccessToken',
+    "lasuite.oidc_login.middleware.RefreshOIDCAccessToken",
 ]
 ```
 
