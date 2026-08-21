@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.28] - 2026-08-21
+
 ### Removed
 
 - 🔥(malware) remove unicity constraint on path column
@@ -224,7 +226,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.27...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.28...main
+[0.0.28]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.27
 [0.0.27]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.27
 [0.0.26]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.26
 [0.0.25]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.25
