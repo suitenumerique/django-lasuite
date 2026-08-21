@@ -538,7 +538,7 @@ def test_authentication_verify_claims_default(django_assert_num_queries, monkeyp
         (["email"], ["email", "sub"]),  # sub is mandatory by default
     ],
 )
-def test_authentication_verify_claims_essential_missing(  # noqa: PLR0913
+def test_authentication_verify_claims_essential_missing(  # noqa: PLR0913, PLR0917
     essential_claims,
     missing_claims,
     caplog,
@@ -717,7 +717,7 @@ def test_authentication_update_existing_user_without_sub_with_other_user_without
         ("existing-sub", False, True),
     ],
 )
-def test_authentication_update_existing_user_with_sub(  # noqa: PLR0913
+def test_authentication_update_existing_user_with_sub(  # noqa: PLR0913,PLR0917
     caplog, monkeypatch, settings, initial_sub, sub_is_immutable, sub_updated
 ):
     """

@@ -58,7 +58,7 @@ from django.urls import include, path
 
 urlpatterns = [
     # Your other URLs
-    path('', include('lasuite.oidc_resource_server.urls')),
+    path("", include("lasuite.oidc_resource_server.urls")),
 ]
 ```
 
@@ -75,10 +75,11 @@ from rest_framework.views import APIView
 
 from lasuite.oidc_resource_server.authentication import ResourceServerAuthentication
 
+
 class SecureAPIView(APIView):
     authentication_classes = [ResourceServerAuthentication]
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request):
         # Your secure view logic here
         return Response({"message": "Authenticated access"})

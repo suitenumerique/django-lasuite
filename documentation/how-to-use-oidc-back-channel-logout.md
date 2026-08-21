@@ -22,7 +22,7 @@ SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 # OR "django.contrib.sessions.backends.db" if you don't want caching
 
 # New required OIDC settings
-OIDC_OP_URL="https://your-provider.com"
+OIDC_OP_URL = "https://your-provider.com"
 ```
 
 ### URLs
@@ -35,7 +35,7 @@ from django.urls import include, path
 
 urlpatterns = [
     # Your other URLs
-    path('', include('lasuite.oidc_login.urls')),
+    path("", include("lasuite.oidc_login.urls")),
 ]
 ```
 

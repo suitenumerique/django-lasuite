@@ -19,7 +19,7 @@ Add the following to your Django settings:
 ```python
 # Add the authentication backend
 AUTHENTICATION_BACKENDS = [
-    'lasuite.oidc_login.backends.OIDCAuthenticationBackend',
+    "lasuite.oidc_login.backends.OIDCAuthenticationBackend",
 ]
 
 # Authentication to support OIDC silent login flows via the 'silent' query parameter
@@ -40,7 +40,7 @@ OIDC_USERINFO_FULLNAME_FIELDS = ["first_name", "last_name"]  # Fields used to co
 OIDC_USERINFO_ESSENTIAL_CLAIMS = ["sub", "last_name"]  # Claims required for user identification, defaults to `[]`
 OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = True  # Allow fallback to email for user identification
 OIDC_CREATE_USER = True  # Automatically create users if they don't exist, defaults to `True`
-OIDC_AUTH_REQUEST_FORWARDED_PARAMS = ["login_hint"] # Forwardable query parameters defaults to `['login_hint'] `
+OIDC_AUTH_REQUEST_FORWARDED_PARAMS = ["login_hint"]  # Forwardable query parameters defaults to `['login_hint'] `
 ```
 
 ### URLs
@@ -52,7 +52,7 @@ from django.urls import include, path
 
 urlpatterns = [
     # Your other URLs
-    path('', include('lasuite.oidc_login.urls')),
+    path("", include("lasuite.oidc_login.urls")),
 ]
 ```
 
@@ -91,7 +91,7 @@ class CustomOIDCAuthenticationBackend(OIDCAuthenticationBackend):
     def get_extra_claims(self, user_info):
         # Add custom claims processing
         claims = super().get_extra_claims(user_info)
-        claims['custom_field'] = user_info.get('custom_field')
+        claims["custom_field"] = user_info.get("custom_field")
         return claims
 
     def post_get_or_create_user(self, user, claims, is_new_user):
