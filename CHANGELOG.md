@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Removed
+
+- 🔥(malware) remove unicity constraint on path column
+
 ## [0.0.27] - 2026-06-22
 
 ### Added
