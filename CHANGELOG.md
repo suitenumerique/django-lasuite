@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- ✨(malware) fill all free slots in launch_next_analysis
+
 ### Fixed
 
 - 🐛(malware) handle polling retry exhaustion in analyse_file_async
