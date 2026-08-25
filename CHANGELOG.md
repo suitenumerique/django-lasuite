@@ -11,6 +11,7 @@ and this project adheres to
 ### Changed
 
 - ✨(malware) fill all free slots in launch_next_analysis
+- ♻️(malware) rename launch_next_analysis to launch_next_analyses
 
 ### Fixed
 
