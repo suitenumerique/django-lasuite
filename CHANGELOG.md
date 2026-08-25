@@ -14,6 +14,7 @@ and this project adheres to
 - 🐛(malware) pass file_hash to failed_analysis in retry guards
 - 🐛(malware) make delete_detection tolerant to duplicate paths
 - 🐛(malware) make failed_analysis tolerant to duplicate paths
+- 🐛(malware) stop stacking duplicate detections in analyse_file
 
 ## [0.0.28] - 2026-08-21
 
