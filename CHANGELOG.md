@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🐛(malware) handle polling retry exhaustion in analyse_file_async
+
 ## [0.0.28] - 2026-08-21
 
 ### Removed
