@@ -11,6 +11,7 @@ and this project adheres to
 ### Fixed
 
 - 🐛(malware) handle polling retry exhaustion in analyse_file_async
+- 🐛(malware) pass file_hash to failed_analysis in retry guards
 
 ## [0.0.28] - 2026-08-21
 
