@@ -10,6 +10,8 @@ and this project adheres to
 
 ### Added
 
+- ✨(malware) add `ReportStatus.PARTIAL` for scans that could not
+  cover the whole file
 - ✨(malware) let backends add details to the error info of a failed
   analysis
 
