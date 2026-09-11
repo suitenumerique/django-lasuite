@@ -12,11 +12,13 @@ from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.contrib.sessions.models import Session
 from django.core.exceptions import SuspiciousOperation
+from django.http import HttpResponseRedirect
 from django.test import RequestFactory
 from django.urls import reverse
-from django.utils import crypto
+from django.utils import crypto, translation
 from joserfc import jwt
 from joserfc.jwk import RSAKey
+from pytest_django.asserts import assertInHTML
 from rest_framework.test import APIClient
 
 from lasuite.oidc_login.views import (
@@ -48,9 +50,13 @@ def test_view_logout_anonymous(settings):
     assert response.url == "/example-logout"
 
 
-@mock.patch.object(OIDCLogoutView, "construct_oidc_logout_url", return_value="/example-logout")
-def test_view_logout(mocked_oidc_logout_url, settings):
-    """Authenticated users should be redirected to OIDC provider for logout."""
+@mock.patch.object(
+    OIDCLogoutView,
+    "construct_oidc_logout_response",
+    return_value=HttpResponseRedirect("https://oidc.example.com/logout"),
+)
+def test_view_logout(mocked_oidc_logout_response, settings):
+    """Authenticated users should be sent to OIDC provider for logout."""
     settings.ALLOW_LOGOUT_GET_METHOD = True
     settings.LOGOUT_REDIRECT_URL = "/example-logout"
 
@@ -60,16 +66,18 @@ def test_view_logout(mocked_oidc_logout_url, settings):
     client.force_login(user)
 
     url = reverse("oidc_logout_custom")
-    response = client.get(url)
 
-    mocked_oidc_logout_url.assert_called_once()
+    with mock.patch("mozilla_django_oidc.views.auth.logout") as mock_logout:
+        response = client.get(url)
+        mocked_oidc_logout_response.assert_called_once()
+        mock_logout.assert_not_called()
 
     assert response.status_code == 302
-    assert response.url == "/example-logout"
+    assert response.url == "https://oidc.example.com/logout"
 
 
-@mock.patch.object(OIDCLogoutView, "construct_oidc_logout_url", return_value="/default-redirect-logout")
-def test_view_logout_no_oidc_provider(mocked_oidc_logout_url, settings):
+@mock.patch.object(OIDCLogoutView, "construct_oidc_logout_response", return_value=None)
+def test_view_logout_no_oidc_provider(mocked_oidc_logout_response, settings):
     """Authenticated users should be logged out when no OIDC provider is available."""
     settings.ALLOW_LOGOUT_GET_METHOD = True
     settings.LOGOUT_REDIRECT_URL = "/default-redirect-logout"
@@ -83,7 +91,7 @@ def test_view_logout_no_oidc_provider(mocked_oidc_logout_url, settings):
 
     with mock.patch("mozilla_django_oidc.views.auth.logout") as mock_logout:
         response = client.get(url)
-        mocked_oidc_logout_url.assert_called_once()
+        mocked_oidc_logout_response.assert_called_once()
         mock_logout.assert_called_once()
 
     assert response.status_code == 302
@@ -161,9 +169,9 @@ def test_view_logout_persist_state(initial_oidc_states):
 
 @mock.patch.object(OIDCLogoutView, "persist_state")
 @mock.patch.object(crypto, "get_random_string", return_value="mocked_state")
-def test_view_logout_construct_oidc_logout_url(mocked_get_random_string, mocked_persist_state, settings):
-    """Should construct the logout URL to initiate the logout flow with the OIDC provider."""
-    settings.OIDC_OP_LOGOUT_ENDPOINT = "/example-logout"
+def test_view_logout_construct_oidc_logout_response(mocked_get_random_string, mocked_persist_state, settings):
+    """Should redirect to the logout URL to initiate the logout flow with the OIDC provider."""
+    settings.OIDC_OP_LOGOUT_ENDPOINT = "https://oidc.example.com/logout"
 
     user = factories.UserFactory()
 
@@ -176,26 +184,25 @@ def test_view_logout_construct_oidc_logout_url(mocked_get_random_string, mocked_
     request.session["oidc_id_token"] = "mocked_oidc_id_token"
     request.session.save()
 
-    redirect_url = OIDCLogoutView().construct_oidc_logout_url(request)
+    response = OIDCLogoutView().construct_oidc_logout_response(request)
 
-    mocked_persist_state.assert_called_once()
+    mocked_persist_state.assert_called_once_with(request, "mocked_state")
     mocked_get_random_string.assert_called_once()
 
-    params = parse_qs(urlparse(redirect_url).query)
+    assert response.status_code == 302
+    assert response.url.startswith("https://oidc.example.com/logout?")
+    assert parse_qs(urlparse(response.url).query) == {
+        "id_token_hint": ["mocked_oidc_id_token"],
+        "state": ["mocked_state"],
+        "post_logout_redirect_uri": ["http://testserver/logout-callback/"],
+    }
 
-    assert params["id_token_hint"][0] == "mocked_oidc_id_token"
-    assert params["state"][0] == "mocked_state"
 
-    url = reverse("oidc_logout_callback")
-    assert url in params["post_logout_redirect_uri"][0]
-
-
-def test_view_logout_construct_oidc_logout_url_none_id_token(settings):
-    """
-    If no ID token is available in the session,
-    the user should be redirected to the final URL.
-    """
-    settings.LOGOUT_REDIRECT_URL = "/"
+@pytest.mark.parametrize("use_post", [True, False])
+def test_view_logout_construct_oidc_logout_response_none_id_token(use_post, settings):
+    """If no ID token is available in the session, the logout flow should not be initiated."""
+    settings.OIDC_OP_LOGOUT_ENDPOINT = "https://oidc.example.com/logout"
+    settings.OIDC_OP_LOGOUT_USE_POST = use_post
     user = factories.UserFactory()
 
     request = RequestFactory().request()
@@ -204,9 +211,174 @@ def test_view_logout_construct_oidc_logout_url_none_id_token(settings):
     middleware = SessionMiddleware(get_response=lambda x: x)
     middleware.process_request(request)
 
-    redirect_url = OIDCLogoutView().construct_oidc_logout_url(request)
+    assert OIDCLogoutView().construct_oidc_logout_response(request) is None
 
-    assert redirect_url == "/"
+
+@mock.patch.object(crypto, "get_random_string", return_value="mocked_state")
+def test_view_logout_get_method_redirects_to_oidc_provider(mocked_get_random_string, settings):
+    """By default, authenticated users should be redirected to the OIDC logout URL with query parameters."""
+    settings.LOGOUT_REDIRECT_URL = "/example-logout"
+    settings.OIDC_OP_LOGOUT_ENDPOINT = "https://oidc.example.com/logout"
+
+    user = factories.UserFactory()
+
+    client = APIClient()
+    client.force_login(user)
+    session = client.session
+    session["oidc_id_token"] = "mocked_oidc_id_token"
+    session.save()
+
+    response = client.post(reverse("oidc_logout_custom"))
+
+    assert response.status_code == 302
+    assert response.url.startswith("https://oidc.example.com/logout?")
+    assert parse_qs(urlparse(response.url).query) == {
+        "id_token_hint": ["mocked_oidc_id_token"],
+        "state": ["mocked_state"],
+        "post_logout_redirect_uri": ["http://testserver/logout-callback/"],
+    }
+
+    # The Django session is kept until the logout callback
+    assert client.session["_auth_user_id"] == str(user.pk)
+    assert client.session["oidc_states"] == {"mocked_state": {}}
+
+
+@mock.patch.object(crypto, "get_random_string", return_value="mocked_state")
+def test_view_logout_post_method_returns_auto_submitted_form(mocked_get_random_string, settings):
+    """
+    When OIDC_OP_LOGOUT_USE_POST is enabled, authenticated users should get a form
+    sending the logout request parameters to the OIDC provider with the POST method.
+    """
+    settings.LOGOUT_REDIRECT_URL = "/example-logout"
+    settings.OIDC_OP_LOGOUT_ENDPOINT = "https://oidc.example.com/logout"
+    settings.OIDC_OP_LOGOUT_USE_POST = True
+
+    user = factories.UserFactory()
+
+    client = APIClient()
+    client.force_login(user)
+    session = client.session
+    session["oidc_id_token"] = "mocked_oidc_id_token"
+    session.save()
+
+    response = client.post(reverse("oidc_logout_custom"))
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "text/html; charset=utf-8"
+    assert "no-store" in response["Cache-Control"]
+
+    content = response.content.decode()
+    assertInHTML(
+        '<form id="oidc-logout-form" method="post" action="https://oidc.example.com/logout">'
+        '<input type="hidden" name="id_token_hint" value="mocked_oidc_id_token">'
+        '<input type="hidden" name="state" value="mocked_state">'
+        '<input type="hidden" name="post_logout_redirect_uri" value="http://testserver/logout-callback/">'
+        '<button type="submit">Continue</button>'
+        "</form>",
+        content,
+    )
+    assert '<script>document.getElementById("oidc-logout-form").submit();</script>' in content
+
+    # The Django session is kept until the logout callback
+    assert client.session["_auth_user_id"] == str(user.pk)
+    assert client.session["oidc_states"] == {"mocked_state": {}}
+
+
+@pytest.mark.parametrize(
+    ("logout_endpoint", "id_token"),
+    [
+        (None, "mocked_oidc_id_token"),
+        ("https://oidc.example.com/logout", None),
+    ],
+)
+def test_view_logout_post_method_cannot_initiate_logout_flow(logout_endpoint, id_token, settings):
+    """
+    When OIDC_OP_LOGOUT_USE_POST is enabled but the logout flow cannot be initiated,
+    users should be logged out and redirected to LOGOUT_REDIRECT_URL.
+    """
+    settings.LOGOUT_REDIRECT_URL = "/example-logout"
+    settings.OIDC_OP_LOGOUT_ENDPOINT = logout_endpoint
+    settings.OIDC_OP_LOGOUT_USE_POST = True
+
+    user = factories.UserFactory()
+
+    client = APIClient()
+    client.force_login(user)
+    if id_token:
+        session = client.session
+        session["oidc_id_token"] = id_token
+        session.save()
+
+    response = client.post(reverse("oidc_logout_custom"))
+
+    assert response.status_code == 302
+    assert response.url == "/example-logout"
+    assert "_auth_user_id" not in client.session
+
+
+def test_view_logout_post_method_anonymous(settings):
+    """When OIDC_OP_LOGOUT_USE_POST is enabled, anonymous users should be redirected to LOGOUT_REDIRECT_URL."""
+    settings.LOGOUT_REDIRECT_URL = "/example-logout"
+    settings.OIDC_OP_LOGOUT_ENDPOINT = "https://oidc.example.com/logout"
+    settings.OIDC_OP_LOGOUT_USE_POST = True
+
+    response = APIClient().post(reverse("oidc_logout_custom"))
+
+    assert response.status_code == 302
+    assert response.url == "/example-logout"
+
+
+@mock.patch.object(
+    OIDCLogoutView,
+    "get_oidc_logout_request",
+    return_value=('https://oidc.example.com/logout?a=1&b="2"', {"state": '"><script>alert(1)</script>'}),
+)
+def test_view_logout_construct_oidc_logout_response_post_escapes_values(mocked_logout_request, settings):
+    """The logout form should escape the endpoint and the parameters values."""
+    settings.OIDC_OP_LOGOUT_USE_POST = True
+    request = RequestFactory().post("/logout/")
+
+    response = OIDCLogoutView().construct_oidc_logout_response(request).render()
+
+    content = response.content.decode()
+    assert "<script>alert(1)</script>" not in content
+    assert 'action="https://oidc.example.com/logout?a=1&amp;b=&quot;2&quot;"' in content
+    assert 'value="&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"' in content
+
+
+@mock.patch.object(
+    OIDCLogoutView,
+    "get_oidc_logout_request",
+    return_value=("https://oidc.example.com/logout", {"state": "mocked_state"}),
+)
+def test_view_logout_construct_oidc_logout_response_post_csp_nonce(mocked_logout_request, settings):
+    """The auto-submit script should use the CSP nonce when available on the request."""
+    settings.OIDC_OP_LOGOUT_USE_POST = True
+    request = RequestFactory().post("/logout/")
+    request.csp_nonce = "mocked-nonce"
+
+    response = OIDCLogoutView().construct_oidc_logout_response(request).render()
+
+    assert '<script nonce="mocked-nonce">' in response.content.decode()
+
+
+@pytest.mark.parametrize("language", ["en", "fr"])
+@mock.patch.object(
+    OIDCLogoutView,
+    "get_oidc_logout_request",
+    return_value=("https://oidc.example.com/logout", {"state": "mocked_state"}),
+)
+def test_view_logout_construct_oidc_logout_response_post_lang(mocked_logout_request, language, settings):
+    """The logout page should declare the active language."""
+    settings.OIDC_OP_LOGOUT_USE_POST = True
+    request = RequestFactory().post("/logout/")
+
+    with translation.override(language):
+        response = OIDCLogoutView().construct_oidc_logout_response(request).render()
+
+    content = response.content.decode()
+    assert content.startswith("<!DOCTYPE html>")
+    assert f'<html lang="{language}">' in content
 
 
 @pytest.mark.parametrize(
