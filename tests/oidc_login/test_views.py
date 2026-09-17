@@ -15,7 +15,7 @@ from django.core.exceptions import SuspiciousOperation
 from django.http import HttpResponseRedirect
 from django.test import RequestFactory
 from django.urls import reverse
-from django.utils import crypto
+from django.utils import crypto, translation
 from joserfc import jwt
 from joserfc.jwk import RSAKey
 from pytest_django.asserts import assertInHTML
@@ -360,6 +360,25 @@ def test_view_logout_construct_oidc_logout_response_post_csp_nonce(mocked_logout
     response = OIDCLogoutView().construct_oidc_logout_response(request).render()
 
     assert '<script nonce="mocked-nonce">' in response.content.decode()
+
+
+@pytest.mark.parametrize("language", ["en", "fr"])
+@mock.patch.object(
+    OIDCLogoutView,
+    "get_oidc_logout_request",
+    return_value=("https://oidc.example.com/logout", {"state": "mocked_state"}),
+)
+def test_view_logout_construct_oidc_logout_response_post_lang(mocked_logout_request, language, settings):
+    """The logout page should declare the active language."""
+    settings.OIDC_OP_LOGOUT_USE_POST = True
+    request = RequestFactory().post("/logout/")
+
+    with translation.override(language):
+        response = OIDCLogoutView().construct_oidc_logout_response(request).render()
+
+    content = response.content.decode()
+    assert content.startswith("<!DOCTYPE html>")
+    assert f'<html lang="{language}">' in content
 
 
 @pytest.mark.parametrize(

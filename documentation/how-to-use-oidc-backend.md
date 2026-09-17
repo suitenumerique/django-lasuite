@@ -92,7 +92,7 @@ When using the POST method:
 - The page is rendered from a template shipped with the package: add `"lasuite.oidc_login"` to your `INSTALLED_APPS` so Django can find it.
 - The form is submitted by an inline script. If your project defines a Content Security Policy with [django-csp](https://django-csp.readthedocs.io/), the request nonce is applied to the script (make sure nonces are enabled for `script-src`). Otherwise, the page displays a "Continue" button to submit the form manually. Your `form-action` directive, if any, must allow the OIDC provider logout endpoint.
 - The browser sends a cross-site POST request to the OIDC provider: its session cookie must be set with `SameSite=None`, otherwise the provider may not be able to identify the session to end.
-- To customize the page, override the `lasuite/oidc_login/logout_form.html` template in your project, or set `logout_form_template_name` on a subclass of `lasuite.oidc_login.views.OIDCLogoutView`. The template context contains `oidc_logout_endpoint`, `parameters` (the form fields) and `csp_nonce`.
+- To customize the page, override the `lasuite/oidc_login/logout_form.html` template in your project, or set `logout_form_template_name` on a subclass of `lasuite.oidc_login.views.OIDCLogoutView`. The template context contains `oidc_logout_endpoint`, `parameters` (the form fields) and `csp_nonce`. The page declares the active language in its `lang` attribute, and its "Logout" and "Continue" strings can be translated in your project locale files.
 
 ## Customization
 
