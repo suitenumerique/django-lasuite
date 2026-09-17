@@ -1,0 +1,18 @@
+{% load i18n %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}
+<html lang="{{ LANGUAGE_CODE }}">
+  <head>
+    <meta charset="utf-8">
+    <title>{% translate "Logout" %}</title>
+  </head>
+  <body>
+    {# The form is submitted by the script, the button is a fallback if the script is blocked #}
+    <form id="oidc-logout-form" method="post" action="{{ oidc_logout_endpoint }}">
+      {% for name, value in parameters.items %}
+        <input type="hidden" name="{{ name }}" value="{{ value }}">
+      {% endfor %}
+      <button type="submit">{% translate "Continue" %}</button>
+    </form>
+    <script{% if csp_nonce %} nonce="{{ csp_nonce }}"{% endif %}>document.getElementById("oidc-logout-form").submit();</script>
+  </body>
+</html>

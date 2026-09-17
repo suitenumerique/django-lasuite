@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(oidc) allow to send the RP-initiated logout request with POST
+
 ## [0.0.29] - 2026-08-25
 
 ### Changed
