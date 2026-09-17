@@ -14,11 +14,11 @@ from django.contrib.sessions.models import Session
 from django.core.cache import cache
 from django.core.exceptions import SuspiciousOperation
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils import crypto, timezone
 from django.utils.cache import add_never_cache_headers
 from django.utils.decorators import method_decorator
-from django.utils.html import format_html, format_html_join
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from joserfc import jws  # mozilla-django-oidc<5.0.0
@@ -56,6 +56,9 @@ class OIDCLogoutView(MozillaOIDCOIDCLogoutView):
     This parameter is crucial for maintaining the integrity of the logout flow between this call
     and the subsequent callback.
     """
+
+    # Template of the auto-submitted form used when `OIDC_OP_LOGOUT_USE_POST` is enabled
+    logout_form_template_name = "lasuite/oidc_login/logout_form.html"
 
     @staticmethod
     def persist_state(request, state):
@@ -109,57 +112,39 @@ class OIDCLogoutView(MozillaOIDCOIDCLogoutView):
 
         return oidc_logout_endpoint, parameters
 
-    def construct_oidc_logout_url(self, request):
+    def construct_oidc_logout_response(self, request):
         """
-        Create the redirect URL for interfacing with the OIDC provider.
+        Create the response sending the user to the OIDC provider to start the logout process.
 
-        The logout request parameters are serialized in the URL query string, to be
-        sent to the OIDC provider using the HTTP GET method.
+        According to the OpenID Connect RP-Initiated Logout specification, the logout request
+        goes through the user agent for the OIDC provider to end its own session, using:
+        - the HTTP GET method (default): redirects to the OIDC logout endpoint, the parameters
+          being serialized in the URL query string;
+        - the HTTP POST method (`OIDC_OP_LOGOUT_USE_POST` setting enabled): returns an
+          auto-submitted HTML form, the parameters being serialized using Form Serialization.
 
-        If the logout flow cannot be initiated, the method will return the default redirect URL.
+        If the logout flow cannot be initiated, the method will return None.
         """
         logout_request = self.get_oidc_logout_request(request)
 
         if logout_request is None:
-            return self.redirect_url
+            return None
 
         oidc_logout_endpoint, parameters = logout_request
 
-        return f"{oidc_logout_endpoint}?{urlencode(parameters)}"
+        if not self.get_settings("OIDC_OP_LOGOUT_USE_POST", False):
+            return HttpResponseRedirect(f"{oidc_logout_endpoint}?{urlencode(parameters)}")
 
-    def construct_oidc_logout_form_response(self, request, oidc_logout_endpoint, parameters):
-        """
-        Create an auto-submitted HTML form sending the logout request to the OIDC provider.
-
-        According to the OpenID Connect RP-Initiated Logout specification, the logout request
-        parameters are serialized using Form Serialization when using the HTTP POST method.
-        The request must go through the user agent for the OIDC provider to end its own
-        session, hence the form instead of a server-to-server request.
-
-        The submit button stays visible in case the inline script is blocked (by a Content
-        Security Policy for instance). When django-csp is used, the request nonce is applied
-        to the script.
-        """
-        csp_nonce = getattr(request, "csp_nonce", None)
-
-        content = format_html(
-            "<!DOCTYPE html>"
-            '<html><head><meta charset="utf-8"><title>Logout</title></head><body>'
-            '<form id="oidc-logout-form" method="post" action="{action}">{inputs}'
-            '<button type="submit">Continue</button>'
-            "</form>"
-            '<script{nonce}>document.getElementById("oidc-logout-form").submit();</script>'
-            "</body></html>",
-            action=oidc_logout_endpoint,
-            inputs=format_html_join(
-                "",
-                '<input type="hidden" name="{}" value="{}">',
-                parameters.items(),
-            ),
-            nonce=format_html(' nonce="{}"', csp_nonce) if csp_nonce else "",
+        response = TemplateResponse(
+            request,
+            self.logout_form_template_name,
+            {
+                "oidc_logout_endpoint": oidc_logout_endpoint,
+                "parameters": parameters,
+                # Set by django-csp, to allow the auto-submit inline script
+                "csp_nonce": getattr(request, "csp_nonce", None),
+            },
         )
-
-        response = HttpResponse(content)
         # The page contains the ID token, it must never be cached
         add_never_cache_headers(response)
         return response
@@ -169,24 +154,14 @@ class OIDCLogoutView(MozillaOIDCOIDCLogoutView):
         Handle user logout.
 
         If the user is not authenticated, redirects to the default logout URL.
-        Otherwise, sends the user to the OIDC provider to start the logout process:
-        - redirects to the OIDC logout URL (HTTP GET method), by default;
-        - returns an auto-submitted form (HTTP POST method), when `OIDC_OP_LOGOUT_USE_POST`
-          setting is enabled.
+        Otherwise, sends the user to the OIDC provider to start the logout process.
 
         If the user is not sent to the OIDC provider, ensure her Django session is terminated.
         """
         logout_response = None
 
         if request.user.is_authenticated:
-            if self.get_settings("OIDC_OP_LOGOUT_USE_POST", False):
-                logout_request = self.get_oidc_logout_request(request)
-                if logout_request is not None:
-                    logout_response = self.construct_oidc_logout_form_response(request, *logout_request)
-            else:
-                logout_url = self.construct_oidc_logout_url(request)
-                if logout_url != self.redirect_url:
-                    logout_response = HttpResponseRedirect(logout_url)
+            logout_response = self.construct_oidc_logout_response(request)
 
         # If the user is not sent to the OIDC provider, ensure logout
         if logout_response is None:

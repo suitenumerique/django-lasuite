@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "lasuite.malware_detection",
+    "lasuite.oidc_login",
     "test_project.user",
 ]
 

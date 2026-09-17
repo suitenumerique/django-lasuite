@@ -41,9 +41,7 @@ OIDC_USERINFO_ESSENTIAL_CLAIMS = ["sub", "last_name"]  # Claims required for use
 OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = True  # Allow fallback to email for user identification
 OIDC_CREATE_USER = True  # Automatically create users if they don't exist, defaults to `True`
 OIDC_AUTH_REQUEST_FORWARDED_PARAMS = ["login_hint"]  # Forwardable query parameters defaults to `['login_hint'] `
-OIDC_OP_LOGOUT_USE_POST = (
-    False  # Send the logout request to the OIDC provider with POST instead of GET, defaults to `False`
-)
+OIDC_OP_LOGOUT_USE_POST = False  # Send the logout request with POST instead of GET, defaults to `False`
 ```
 
 ### URLs
@@ -91,9 +89,10 @@ The logout request can be sent to the OIDC provider with two HTTP methods:
 
 When using the POST method:
 
+- The page is rendered from a template shipped with the package: add `"lasuite.oidc_login"` to your `INSTALLED_APPS` so Django can find it.
 - The form is submitted by an inline script. If your project defines a Content Security Policy with [django-csp](https://django-csp.readthedocs.io/), the request nonce is applied to the script (make sure nonces are enabled for `script-src`). Otherwise, the page displays a "Continue" button to submit the form manually. Your `form-action` directive, if any, must allow the OIDC provider logout endpoint.
 - The browser sends a cross-site POST request to the OIDC provider: its session cookie must be set with `SameSite=None`, otherwise the provider may not be able to identify the session to end.
-- To customize the page, override the `construct_oidc_logout_form_response` method of `lasuite.oidc_login.views.OIDCLogoutView`.
+- To customize the page, override the `lasuite/oidc_login/logout_form.html` template in your project, or set `logout_form_template_name` on a subclass of `lasuite.oidc_login.views.OIDCLogoutView`. The template context contains `oidc_logout_endpoint`, `parameters` (the form fields) and `csp_nonce`.
 
 ## Customization
 
