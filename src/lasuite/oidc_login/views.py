@@ -738,7 +738,10 @@ class OIDCAuthenticationCallbackView(MozillaOIDCAuthenticationCallbackView):
     """Custom callback view for handling silent login failure with state validation."""
 
     def get(self, request):
-        """Handle silent login failure with CSRF protection via state validation."""
+        """
+        Handle the login callback, including silent login failures and
+        replayed or unknown state parameters.
+        """
         error = request.GET.get("error")
         state = request.GET.get("state")
 
@@ -751,6 +754,25 @@ class OIDCAuthenticationCallbackView(MozillaOIDCAuthenticationCallbackView):
                 return HttpResponseRedirect(self.success_url)
             msg = "OIDC callback state validation failed during silent login"
             raise SuspiciousOperation(msg)
+
+        # mozilla-django-oidc raises a SuspiciousOperation (HTTP 400) when an
+        # authorization code callback carries a state that is missing from the
+        # session: missing or empty `oidc_states` key, or unknown state value.
+        # In production this is most often a replay of the callback url
+        # (browser refresh, back navigation or a duplicate redirect from the
+        # identity provider) after a first callback request already consumed
+        # the state. This is harmless and should not produce an error page,
+        # so we abort the login before exchanging the authorization code.
+        if error is None and "code" in request.GET and state and state not in request.session.get("oidc_states", {}):
+            logger.warning(
+                "OIDC callback received an unknown state parameter: the state was"
+                " already consumed or the session changed between the"
+                " authentication request and the callback. Aborting login"
+                " gracefully."
+            )
+            if request.user.is_authenticated:
+                return HttpResponseRedirect(self.success_url)
+            return self.login_failure()
 
         return super().get(request)
 

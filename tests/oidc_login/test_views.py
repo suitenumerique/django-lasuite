@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 import responses
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user, get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.contrib.sessions.models import Session
@@ -21,6 +21,7 @@ from joserfc.jwk import RSAKey
 from pytest_django.asserts import assertInHTML
 from rest_framework.test import APIClient
 
+from lasuite.oidc_login.backends import OIDCAuthenticationBackend
 from lasuite.oidc_login.views import (
     OIDCAuthenticationCallbackView,
     OIDCAuthenticationRequestView,
@@ -1247,3 +1248,272 @@ def test_view_callback_silent_login_with_valid_state(mocked_success_url):
     # because the SSO provider might send another callback with the actual code
     # using the same state shortly after
     assert "valid_state" in request.session.get("oidc_states", {})
+
+
+@mock.patch.object(
+    OIDCAuthenticationCallbackView,
+    "failure_url",
+    new_callable=mock.PropertyMock,
+    return_value="/failure/",
+)
+def test_view_callback_with_unknown_state_anonymous(mocked_failure_url):
+    """
+    An authorization code callback with a state unknown to the session should
+    abort the login gracefully instead of raising a SuspiciousOperation.
+
+    This happens in production when the callback url is replayed (browser
+    refresh, back navigation or a duplicate redirect from the identity
+    provider) after a first callback request already consumed the state.
+    """
+    request = RequestFactory().get("/callback/", data={"code": "some-code", "state": "unknown-state"})
+    request.user = AnonymousUser()
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    request.session["oidc_states"] = {"known-state": {"nonce": "nonce"}}
+    request.session.save()
+
+    with mock.patch("django.contrib.auth.authenticate") as mocked_authenticate:
+        response = OIDCAuthenticationCallbackView.as_view()(request)
+
+    mocked_failure_url.assert_called_once()
+    mocked_authenticate.assert_not_called()
+    assert response.status_code == 302
+    assert response.url == "/failure/"
+    # The session should be left untouched
+    assert request.session["oidc_states"] == {"known-state": {"nonce": "nonce"}}
+
+
+@mock.patch.object(
+    OIDCAuthenticationCallbackView,
+    "success_url",
+    new_callable=mock.PropertyMock,
+    return_value="/homepage/",
+)
+def test_view_callback_with_unknown_state_authenticated(mocked_success_url):
+    """
+    An authorization code callback with a state unknown to the session for an
+    already authenticated user should redirect to the success url.
+
+    This is the typical case of a replayed callback after the first request
+    successfully logged the user in.
+    """
+    request = RequestFactory().get("/callback/", data={"code": "some-code", "state": "unknown-state"})
+    request.user = factories.UserFactory()
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    request.session["oidc_states"] = {"known-state": {"nonce": "nonce"}}
+    request.session.save()
+
+    with mock.patch("django.contrib.auth.authenticate") as mocked_authenticate:
+        response = OIDCAuthenticationCallbackView.as_view()(request)
+
+    mocked_success_url.assert_called_once()
+    mocked_authenticate.assert_not_called()
+    assert response.status_code == 302
+    assert response.url == "/homepage/"
+
+
+@mock.patch.object(
+    OIDCAuthenticationCallbackView,
+    "failure_url",
+    new_callable=mock.PropertyMock,
+    return_value="/failure/",
+)
+@mock.patch.object(
+    OIDCAuthenticationCallbackView,
+    "success_url",
+    new_callable=mock.PropertyMock,
+    return_value="/homepage/",
+)
+@pytest.mark.parametrize(
+    "session_oidc_states",
+    [
+        None,  # missing 'oidc_states' key
+        {},  # empty 'oidc_states' dictionary
+    ],
+    ids=["missing_key", "empty_dict"],
+)
+@pytest.mark.parametrize("is_authenticated", [False, True], ids=["anonymous", "authenticated"])
+def test_view_callback_with_empty_or_missing_oidc_states(
+    mocked_success_url, mocked_failure_url, is_authenticated, session_oidc_states
+):
+    """
+    A callback with a state that cannot be found in the session should fail
+    gracefully whether the `oidc_states` key is missing, empty or holds other
+    states. An authenticated user gets the success url while an anonymous user
+    gets the failure url.
+    """
+    request = RequestFactory().get("/callback/", data={"code": "some-code", "state": "unknown-state"})
+    request.user = factories.UserFactory() if is_authenticated else AnonymousUser()
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    if session_oidc_states is not None:
+        request.session["oidc_states"] = session_oidc_states
+    request.session.save()
+
+    with mock.patch("django.contrib.auth.authenticate") as mocked_authenticate:
+        response = OIDCAuthenticationCallbackView.as_view()(request)
+
+    mocked_authenticate.assert_not_called()
+    assert response.status_code == 302
+    if is_authenticated:
+        mocked_success_url.assert_called_once()
+        assert response.url == "/homepage/"
+    else:
+        mocked_failure_url.assert_called_once()
+        assert response.url == "/failure/"
+
+
+def _create_callback_request(settings, data, session_key=None):
+    """Build a callback request with a session, as the session middleware would."""
+    request = RequestFactory().get("/callback/", data=data)
+
+    if session_key is not None:
+        request.COOKIES = {settings.SESSION_COOKIE_NAME: session_key}
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    return request
+
+
+@responses.activate
+@mock.patch.object(
+    OIDCAuthenticationCallbackView,
+    "success_url",
+    new_callable=mock.PropertyMock,
+    return_value="/homepage/",
+)
+def test_view_callback_replay_after_successful_login(mocked_success_url, settings, monkeypatch):
+    """
+    Reproduce a callback replay after a successful login.
+
+    A first callback request consumes the state and logs the user in, then the
+    same browser session replays the callback url. The replay should redirect
+    to the success url without trying to authenticate.
+    """
+    settings.OIDC_OP_TOKEN_ENDPOINT = "http://oidc.endpoint.test/token"
+    settings.OIDC_OP_USER_ENDPOINT = "http://oidc.endpoint.test/userinfo"
+
+    def verify_token_mocked(*args, **kwargs):
+        """Return payload claims without token verification."""
+        return {"sub": "123", "email": "test@example.com"}
+
+    monkeypatch.setattr(OIDCAuthenticationBackend, "verify_token", verify_token_mocked)
+
+    responses.add(
+        responses.POST,
+        settings.OIDC_OP_TOKEN_ENDPOINT,
+        json={"access_token": "test-access-token"},
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        settings.OIDC_OP_USER_ENDPOINT,
+        json={"sub": "123", "email": "test@example.com"},
+        status=200,
+    )
+
+    # - First callback: a valid state is stored in the session and consumed
+    request = _create_callback_request(settings, {"code": "some-code", "state": "known-state"})
+    request.user = AnonymousUser()
+
+    request.session["oidc_states"] = {"known-state": {"nonce": "nonce", "code_verifier": None}}
+    request.session.save()
+
+    response = OIDCAuthenticationCallbackView.as_view()(request)
+
+    assert response.status_code == 302
+    assert response.url == "/homepage/"
+    # The first callback consumed the state
+    assert request.session["oidc_states"] == {}
+    user = UserModel.objects.get(email="test@example.com")
+
+    # - Replay: same browser session, the state is now gone from the session.
+    # The login cycled the session key, the replayed request carries the
+    # updated session cookie and resolves to the authenticated user.
+    request.session.save()
+    replay_request = _create_callback_request(
+        settings, {"code": "some-code", "state": "known-state"}, session_key=request.session.session_key
+    )
+    replay_request.user = get_user(replay_request)
+    assert replay_request.user == user
+    mocked_success_url.reset_mock()
+
+    with mock.patch("django.contrib.auth.authenticate") as mocked_authenticate:
+        replay_response = OIDCAuthenticationCallbackView.as_view()(replay_request)
+
+    mocked_success_url.assert_called_once()
+    mocked_authenticate.assert_not_called()
+    # The authorization code should only have been exchanged once
+    responses.assert_call_count(settings.OIDC_OP_TOKEN_ENDPOINT, 1)
+    assert replay_response.status_code == 302
+    assert replay_response.url == "/homepage/"
+    # The login should still be effective
+    assert get_user(replay_request) == user
+
+
+@responses.activate
+@mock.patch.object(
+    OIDCAuthenticationCallbackView,
+    "failure_url",
+    new_callable=mock.PropertyMock,
+    return_value="/failure/",
+)
+@mock.patch.object(OIDCAuthenticationBackend, "verify_token", return_value=None)
+def test_view_callback_replay_after_failed_login(mocked_verify_token, mocked_failure_url, settings):
+    """
+    Reproduce a callback replay after a failed login.
+
+    A first callback request consumes the state but fails to authenticate the
+    user, then the same browser session replays the callback url. The replay
+    should redirect to the failure url without trying to exchange the code.
+    """
+    settings.OIDC_OP_TOKEN_ENDPOINT = "http://oidc.endpoint.test/token"
+
+    responses.add(
+        responses.POST,
+        settings.OIDC_OP_TOKEN_ENDPOINT,
+        json={"access_token": "test-access-token"},
+        status=200,
+    )
+
+    # - First callback: the state is consumed but the login fails
+    request = _create_callback_request(settings, {"code": "some-code", "state": "known-state"})
+    request.user = AnonymousUser()
+
+    request.session["oidc_states"] = {"known-state": {"nonce": "nonce", "code_verifier": None}}
+    request.session.save()
+
+    response = OIDCAuthenticationCallbackView.as_view()(request)
+
+    # The token endpoint was reached but verify_token returned no payload
+    mocked_verify_token.assert_called_once()
+    assert response.status_code == 302
+    assert response.url == "/failure/"
+    # The first callback consumed the state but did not log the user in
+    assert request.session["oidc_states"] == {}
+    mocked_failure_url.reset_mock()
+
+    # - Replay: same browser session, still anonymous
+    replay_request = _create_callback_request(
+        settings, {"code": "some-code", "state": "known-state"}, session_key=request.session.session_key
+    )
+    replay_request.user = get_user(replay_request)
+    assert not replay_request.user.is_authenticated
+
+    with mock.patch("django.contrib.auth.authenticate") as mocked_authenticate:
+        replay_response = OIDCAuthenticationCallbackView.as_view()(replay_request)
+
+    mocked_failure_url.assert_called_once()
+    mocked_authenticate.assert_not_called()
+    # The authorization code should only have been exchanged once
+    responses.assert_call_count(settings.OIDC_OP_TOKEN_ENDPOINT, 1)
+    assert replay_response.status_code == 302
+    assert replay_response.url == "/failure/"
