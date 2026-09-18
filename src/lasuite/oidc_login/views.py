@@ -711,6 +711,30 @@ class OIDCAuthenticationCallbackView(MozillaOIDCAuthenticationCallbackView):
             msg = "OIDC callback state validation failed during silent login"
             raise SuspiciousOperation(msg)
 
+        # mozilla-django-oidc raises a SuspiciousOperation (HTTP 400) when the
+        # state of an authorization code callback is missing from the session.
+        # In production this is most often a replay of the callback url
+        # (browser refresh, back navigation or a duplicate redirect from the
+        # identity provider) after a first callback request already consumed
+        # the state. This is harmless and should not produce an error page,
+        # so we abort the login gracefully instead of raising.
+        if (
+            error is None
+            and "code" in request.GET
+            and state
+            and "oidc_states" in request.session
+            and state not in request.session["oidc_states"]
+        ):
+            logger.warning(
+                "OIDC callback received an unknown state parameter: the state was"
+                " already consumed or the session changed between the"
+                " authentication request and the callback. Aborting login"
+                " gracefully."
+            )
+            if request.user.is_authenticated:
+                return HttpResponseRedirect(self.success_url)
+            return self.login_failure()
+
         return super().get(request)
 
     @property

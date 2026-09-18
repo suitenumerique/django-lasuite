@@ -19,6 +19,7 @@ from joserfc import jwt
 from joserfc.jwk import RSAKey
 from rest_framework.test import APIClient
 
+from lasuite.oidc_login.backends import OIDCAuthenticationBackend
 from lasuite.oidc_login.views import (
     OIDCAuthenticationCallbackView,
     OIDCAuthenticationRequestView,
@@ -1075,3 +1076,114 @@ def test_view_callback_silent_login_with_valid_state(mocked_success_url):
     # because the SSO provider might send another callback with the actual code
     # using the same state shortly after
     assert "valid_state" in request.session.get("oidc_states", {})
+
+
+@mock.patch.object(
+    OIDCAuthenticationCallbackView,
+    "failure_url",
+    new_callable=mock.PropertyMock,
+    return_value="/failure/",
+)
+def test_view_callback_with_unknown_state_anonymous(mocked_failure_url):
+    """
+    An authorization code callback with a state unknown to the session should
+    abort the login gracefully instead of raising a SuspiciousOperation.
+
+    This happens in production when the callback url is replayed (browser
+    refresh, back navigation or a duplicate redirect from the identity
+    provider) after a first callback request already consumed the state.
+    """
+    request = RequestFactory().get("/callback/", data={"code": "some-code", "state": "unknown-state"})
+    request.user = AnonymousUser()
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    request.session["oidc_states"] = {"known-state": {"nonce": "nonce"}}
+    request.session.save()
+
+    response = OIDCAuthenticationCallbackView.as_view()(request)
+
+    mocked_failure_url.assert_called_once()
+    assert response.status_code == 302
+    assert response.url == "/failure/"
+    # The session should be left untouched
+    assert request.session["oidc_states"] == {"known-state": {"nonce": "nonce"}}
+
+
+@mock.patch.object(
+    OIDCAuthenticationCallbackView,
+    "success_url",
+    new_callable=mock.PropertyMock,
+    return_value="/homepage/",
+)
+def test_view_callback_with_unknown_state_authenticated(mocked_success_url):
+    """
+    An authorization code callback with a state unknown to the session for an
+    already authenticated user should redirect to the success url.
+
+    This is the typical case of a replayed callback after the first request
+    successfully logged the user in.
+    """
+    request = RequestFactory().get("/callback/", data={"code": "some-code", "state": "unknown-state"})
+    request.user = factories.UserFactory()
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    request.session["oidc_states"] = {"known-state": {"nonce": "nonce"}}
+    request.session.save()
+
+    response = OIDCAuthenticationCallbackView.as_view()(request)
+
+    mocked_success_url.assert_called_once()
+    assert response.status_code == 302
+    assert response.url == "/homepage/"
+
+
+@responses.activate
+@mock.patch.object(
+    OIDCAuthenticationCallbackView,
+    "success_url",
+    new_callable=mock.PropertyMock,
+    return_value="/homepage/",
+)
+def test_view_callback_with_valid_state_and_code(mocked_success_url, settings, monkeypatch):
+    """A callback with a code and a state known to the session should still authenticate the user."""
+    settings.OIDC_OP_TOKEN_ENDPOINT = "http://oidc.endpoint.test/token"
+    settings.OIDC_OP_USER_ENDPOINT = "http://oidc.endpoint.test/userinfo"
+
+    def verify_token_mocked(*args, **kwargs):
+        """Return payload claims without token verification."""
+        return {"sub": "123", "email": "test@example.com"}
+
+    monkeypatch.setattr(OIDCAuthenticationBackend, "verify_token", verify_token_mocked)
+
+    responses.add(
+        responses.POST,
+        settings.OIDC_OP_TOKEN_ENDPOINT,
+        json={"access_token": "test-access-token"},
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        settings.OIDC_OP_USER_ENDPOINT,
+        json={"sub": "123", "email": "test@example.com"},
+        status=200,
+    )
+
+    request = RequestFactory().get("/callback/", data={"code": "some-code", "state": "known-state"})
+    request.user = AnonymousUser()
+
+    middleware = SessionMiddleware(get_response=lambda x: x)
+    middleware.process_request(request)
+
+    request.session["oidc_states"] = {"known-state": {"nonce": "nonce", "code_verifier": None}}
+    request.session.save()
+
+    response = OIDCAuthenticationCallbackView.as_view()(request)
+
+    mocked_success_url.assert_called_once()
+    assert response.status_code == 302
+    assert response.url == "/homepage/"
+    assert UserModel.objects.get(email="test@example.com")
