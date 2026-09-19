@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🐛(oidc) handle replayed OIDC callback state gracefully
+
 ## [0.0.29] - 2026-08-25
 
 ### Changed
