@@ -61,6 +61,7 @@ and this project adheres to
 
 ### Added
 
+- ✨(oidc-rs) allow to create unknown users on the fly with `OIDC_RS_CREATE_USER`
 - ✨(oidc) allow to send the RP-initiated logout request with POST
 
 ### Fixed
