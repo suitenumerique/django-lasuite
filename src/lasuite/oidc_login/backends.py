@@ -241,9 +241,24 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
           Exception: Raised when user creation is not allowed and no existing user is found.
 
         """
-        _user_created = False
         user_info = self.get_userinfo(access_token, id_token, payload)
+        claims = self.get_claims_from_userinfo(user_info)
+        return self.get_or_create_user_from_claims(claims)
 
+    def get_claims_from_userinfo(self, user_info):
+        """
+        Validate the userinfo and return the claims to store on the user.
+
+        Args:
+          user_info (dict): The userinfo returned by the OIDC provider.
+
+        Returns:
+          dict: The claims, with the sub stored under `OIDC_USER_SUB_FIELD`.
+
+        Raises:
+          SuspiciousOperation: Raised when the userinfo misses essential claims or the sub.
+
+        """
         if not self.verify_claims(user_info):
             msg = "Claims verification failed"
             raise SuspiciousOperation(msg)
@@ -252,13 +267,31 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         if not sub:
             raise SuspiciousOperation("User info contained no recognizable user identification")
 
-        email = user_info.get("email")
-
         claims = {
             self.OIDC_USER_SUB_FIELD: sub,
-            "email": email,
+            "email": user_info.get("email"),
         }
         claims.update(**self.get_extra_claims(user_info))
+        return claims
+
+    def get_or_create_user_from_claims(self, claims):
+        """
+        Return the user matching the claims, updated if needed. Create it if no match is found.
+
+        Args:
+          claims (dict): The claims returned by `get_claims_from_userinfo`.
+
+        Returns:
+          User: An existing or newly created User instance, or None when no user matches
+          and `OIDC_CREATE_USER` is False.
+
+        Raises:
+          SuspiciousOperation: Raised when the matching user is inactive.
+
+        """
+        _user_created = False
+        sub = claims[self.OIDC_USER_SUB_FIELD]
+        email = claims.get("email")
 
         # if sub is absent, try matching on email
         user = self.get_existing_user(sub, email)

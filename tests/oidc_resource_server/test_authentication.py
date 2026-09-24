@@ -126,6 +126,55 @@ def test_resource_server_authentication_class(client, settings):
 
 
 @responses.activate
+def test_resource_server_authentication_class_creates_user(client, settings):
+    """
+    With OIDC_RS_CREATE_USER enabled, a user unknown to the resource server
+    is created from the userinfo endpoint and authenticated.
+    """
+    settings.OIDC_RS_CLIENT_ID = "some_client_id"
+    settings.OIDC_RS_CLIENT_SECRET = "some_client_secret"
+    settings.OIDC_RS_CREATE_USER = True
+
+    settings.OIDC_OP_URL = "https://oidc.example.com"
+    settings.OIDC_VERIFY_SSL = False
+    settings.OIDC_TIMEOUT = 5
+    settings.OIDC_PROXY = None
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
+    settings.OIDC_OP_USER_ENDPOINT = "https://oidc.example.com/userinfo"
+
+    responses.add(
+        responses.POST,
+        "https://oidc.example.com/introspect",
+        json={
+            "iss": "https://oidc.example.com",
+            "aud": "some_client_id",  # settings.OIDC_RS_CLIENT_ID
+            "sub": "very-specific-sub",
+            "client_id": "some_service_provider",
+            "scope": "openid groups",
+            "active": True,
+        },
+    )
+    responses.add(
+        responses.GET,
+        "https://oidc.example.com/userinfo",
+        json={"sub": "very-specific-sub", "email": "john@example.com"},
+    )
+
+    response = client.get(
+        "/users/",  # use an exising URL here
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {build_authorization_bearer('some_token')}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+
+    response_request = response.renderer_context.get("request")
+    assert response_request.user.sub == "very-specific-sub"
+    assert response_request.user.email == "john@example.com"
+    assert response_request.resource_server_token_audience == "some_service_provider"
+
+
+@responses.activate
 def test_jwt_resource_server_authentication_class(  # pylint: disable=unused-argument
     client, jwt_resource_server_backend, settings
 ):
