@@ -76,6 +76,13 @@ Your User model should include the following fields:
    - Updates user information if needed
 4. User is now authenticated in your application
 
+If the callback url is hit again with a `state` parameter that is no longer in
+the session (e.g. the browser refreshed or replayed the callback url, or the
+identity provider sent a duplicate redirect after the first request already
+consumed the state), the login is aborted gracefully: the user is redirected
+to the failure url (`success_url` instead when already authenticated) rather
+than receiving an error page.
+
 ## Logout Functionality
 
 The package includes custom logout views that will properly sign the user out from both your application and the OIDC provider.

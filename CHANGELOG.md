@@ -12,6 +12,10 @@ and this project adheres to
 
 - ✨(oidc) allow to send the RP-initiated logout request with POST
 
+### Fixed
+
+- 🐛(oidc) handle replayed OIDC callback state gracefully
+
 ## [0.0.29] - 2026-08-25
 
 ### Changed
