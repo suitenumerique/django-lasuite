@@ -7,6 +7,8 @@ from json import JSONDecodeError
 from django.conf import settings
 from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
+from django.db import transaction
+from django.utils.module_loading import import_string
 from joserfc import jwe as jose_jwe
 from joserfc import jwt as jose_jwt
 from joserfc.errors import InvalidClaimError, InvalidTokenError, MissingClaimError
@@ -50,6 +52,12 @@ class ResourceServerBackend:
         self._encryption_algorithm = settings.OIDC_RS_ENCRYPTION_ALGO
         self._signing_algorithm = settings.OIDC_RS_SIGNING_ALGO
         self._scopes = settings.OIDC_RS_SCOPES
+        self._create_user = getattr(settings, "OIDC_RS_CREATE_USER", False)
+        self._user_creation_backend_class = getattr(
+            settings,
+            "OIDC_RS_USER_CREATION_BACKEND_CLASS",
+            "lasuite.oidc_login.backends.OIDCAuthenticationBackend",
+        )
 
         self._authorization_server_client = self.authorization_server_client_class()
 
@@ -101,10 +109,33 @@ class ResourceServerBackend:
         """
         Maintain API compatibility with OIDCAuthentication class from mozilla-django-oidc.
 
-        The current implementation does not support user creation, it will come later if needed,
-        or be implemented in project which requires it.
+        When `OIDC_RS_CREATE_USER` is enabled and no user matches the introspected
+        sub, the user is fetched or created by the `OIDC_RS_USER_CREATION_BACKEND_CLASS`
+        backend, as it would be on a regular OIDC login. The introspection response
+        rarely contains the user's email or name, so that backend requests the
+        userinfo endpoint with the same access token.
         """
-        return self.get_user(access_token, id_token, payload)
+        user = self.get_user(access_token, id_token, payload)
+        if user is not None or not self._create_user:
+            return user
+
+        backend = import_string(self._user_creation_backend_class)()
+
+        # Roll back the creation (or the sub update of a user matched by email) if
+        # the userinfo endpoint does not describe the introspected user.
+        with transaction.atomic():
+            try:
+                user = backend.get_or_create_user(access_token, None, payload)
+            except HTTPError as err:
+                message = "Could not fetch user info"
+                logger.debug("%s. Exception:", message, exc_info=True)
+                raise SuspiciousOperation(message) from err
+
+            if user is not None and getattr(user, backend.OIDC_USER_SUB_FIELD) != payload["sub"]:
+                logger.warning("User info sub does not match the introspected sub")
+                raise SuspiciousOperation("User info does not match the introspected user")
+
+        return user
 
     # pylint: disable=unused-argument
     def get_user(self, access_token, id_token, payload):
