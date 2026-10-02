@@ -8,6 +8,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(malware) add `FileScannerBackend` as malware scanner backend
+  with signed webhook verification and reusable callback URLs
+- ✨(malware) add `ReportStatus.PARTIAL` for scans that could not
+  cover the whole file
+
 ## [0.0.30] - 2026-09-30
 
 ### Added
@@ -67,7 +74,7 @@ and this project adheres to
 ### Changed
 
 - 🚸(oidc) ignore case when fallback on email #61
--  🔊(oidc) improve logging for improperly configured authorization clients #66
+- 🔊(oidc) improve logging for improperly configured authorization clients #66
 
 ### Fixed
 
@@ -76,8 +83,6 @@ and this project adheres to
 - 📝(oidc) document required oidc_op_url for resource server configuration #66
 
 ## [0.0.23] - 2026-01-14
-
-
 
 - ⬆️(oidc) allow use mozilla-django-oidc >5.0.0 with PyJWT
 - ♻️(malware) reuse existing file_hash when rescheduling a task
@@ -127,13 +132,11 @@ and this project adheres to
 
 - 🐛(oidc) do not allow user sub update when set #34
 
-
 ## [0.0.16] - 2025-10-24
 
 ### Fixed
 
 - 🐛(oidc) fix `update_user` when `User.sub` is nullable #31
-
 
 ## [0.0.15] - 2025-10-24
 
