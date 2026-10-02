@@ -10,7 +10,10 @@ and this project adheres to
 
 ### Added
 
-- ✨(malware) add `FileScannerBackend` as malware scanner backend with signed webhook verification and reusable callback URLs
+- ✨(malware) add `FileScannerBackend` as malware scanner backend
+  with signed webhook verification and reusable callback URLs
+- ✨(malware) add `ReportStatus.PARTIAL` for scans that could not
+  cover the whole file
 
 ## [0.0.30] - 2026-09-30
 
