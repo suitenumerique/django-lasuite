@@ -80,8 +80,6 @@ class BrevoBackend(BaseBackend):
             "attributes": attributes,
         }
 
-        print(payload)
-
         try:
             response = requests.post(
                 "https://api.brevo.com/v3/contacts",
