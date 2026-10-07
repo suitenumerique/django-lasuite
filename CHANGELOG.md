@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🔇(marketing) remove debug print leaking PII in Brevo backend
+
 ## [0.0.30] - 2026-09-30
 
 ### Added
