@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>numerique-gouv/renovate-configuration"],
+  "extends": ["github>suitenumerique/ci//renovate/default"],
   "dependencyDashboard": true,
   "labels": ["dependencies", "noChangeLog", "automated"],
   "enabledManagers": ["docker-compose", "dockerfile", "github-actions" ,"npm", "setup-cfg", "pep621"]
