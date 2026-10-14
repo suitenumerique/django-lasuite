@@ -145,7 +145,7 @@ class ResourceServerBackend:
         if not active:
             message = "Introspected user is not active"
             logger.info("Token introspection refused because user is not active")
-            raise SuspiciousOperation(message)  # is it suspicious or just PermissionDenied?
+            raise SuspiciousOperation(message)
 
         requested_scopes_str = introspection_response.get("scope", None)
         if requested_scopes_str is None:
