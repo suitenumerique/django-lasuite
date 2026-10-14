@@ -1,6 +1,6 @@
 # Using marketing backend
 
-If you need a marketing service in the application you are developping, this module will provide the implementation you need.
+If you need a marketing service in the application you are developing, this module will provide the implementation you need.
 
 The list of backends available and what they are able to do is subject to evolution.
 
@@ -10,7 +10,7 @@ A backend should inherit from `lasuite.marketing.backends.base.BaseBackend` clas
 
 ### Abstract methods
 
-- `def create_or_update_contact(self, contact_data: ContactData, timeout: int = None) -> dict:`: It is the method to call to create a new contact in your marketin system.
+- `def create_or_update_contact(self, contact_data: ContactData, timeout: int = None) -> dict:`: It is the method to call to create a new contact in your marketing system.
     - `contact_data` is an instance of the `lasuite.marketing.ContactData` data class.
     - `timeout` is an optional parameter used if you want to force a request timeout.
 
