@@ -41,9 +41,9 @@ This implementation does nothing and accept no parameter.
 
 ### Brevo
 
-path: ``lasuite.marketing.backend.brevo.BrevoBackend`
+path: `lasuite.marketing.backend.brevo.BrevoBackend`
 parameters:
     - `api_key`: The api_key used by the brevo client. Provided by brevo. Required
     - `api_contact_list_ids`: The list of contact_list defined in brevo. At least one should be provided. Required
     - `api_contact_attributes`: A dict of attributes to add to the contact. Optional
-    
+
