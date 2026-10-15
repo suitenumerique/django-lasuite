@@ -4,6 +4,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from test_project.oidc_resource_server.views import UserViewSet
 
+from lasuite.healthcheck.urls import urlpatterns as healthcheck_urls
 from lasuite.oidc_login.urls import urlpatterns as oidc_urls
 from lasuite.oidc_resource_server.urls import urlpatterns as resource_server_urls
 
@@ -16,6 +17,7 @@ urlpatterns = [
         "",
         include(
             [
+                *healthcheck_urls,
                 *oidc_urls,
                 *resource_server_urls,
                 *router.urls,

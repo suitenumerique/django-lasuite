@@ -3,6 +3,8 @@
 import os
 from pathlib import Path
 
+from lasuite.configuration.values import JsonValue
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -23,6 +25,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "lasuite.healthcheck",
     "lasuite.malware_detection",
     "lasuite.oidc_login",
     "test_project.user",
@@ -144,3 +147,14 @@ OIDC_RS_SCOPES = ["groups"]
 # Django Admin
 ADMIN_HEADER_BACKGROUND = "#0f5132"
 ADMIN_HEADER_COLOR = "#ffffff"
+
+
+# LaSuite Healthcheck
+LASUITE_HEALTHCHECK_CHECKS = JsonValue(
+    [
+        {"BACKEND": "lasuite.healthcheck.checks.DatabaseHealthCheck"},
+        {"BACKEND": "lasuite.healthcheck.checks.CacheHealthCheck"},
+    ],
+    environ_name="LASUITE_HEALTHCHECK_CHECKS",
+    environ_prefix=None,
+)

@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(healthcheck) add an API key protected healthcheck endpoint
+
 ## [0.0.30] - 2026-09-30
 
 ### Added

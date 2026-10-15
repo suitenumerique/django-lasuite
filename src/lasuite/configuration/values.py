@@ -48,3 +48,9 @@ class SecretFileValue(values.Value):
                 )
         self.value = value
         return value
+
+
+class JsonValue(values.CastingMixin, values.Value):
+    """Class used to interpret value from environment variables as JSON."""
+
+    caster = "json.loads"
