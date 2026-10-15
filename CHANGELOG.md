@@ -16,6 +16,7 @@ and this project adheres to
 ### Fixed
 
 - 🔇(marketing) remove debug print leaking PII in Brevo backend
+- 🐛(malware) only launch the pending analyses of the active backend
 
 ## [0.0.30] - 2026-09-30
 
