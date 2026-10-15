@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🐛(malware) only launch the pending analyses of the active backend
+
 ## [0.0.31] - 2026-10-16
 
 ### Added
