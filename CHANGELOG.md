@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(malware) let backends add details to the error info of a failed
+  analysis
+
 ### Fixed
 
 - 🐛(malware) only launch the pending analyses of the active backend
