@@ -12,6 +12,8 @@ and this project adheres to
 
 - ✨(malware) add ICAP backend to scan files with an ICAP-compatible 
   antivirus engine
+- ✨(malware) let backends add details to the error info of a failed
+  analysis
 
 ### Fixed
 
