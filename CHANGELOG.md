@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.0.31] - 2026-10-16
+
 ### Added
 
 - ✨(malware) add ICAP backend to scan files with an ICAP-compatible 
@@ -261,7 +263,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.30...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.31...main
+[0.0.31]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.31
 [0.0.30]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.30
 [0.0.29]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.29
 [0.0.28]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.28
