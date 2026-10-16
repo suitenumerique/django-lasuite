@@ -235,3 +235,28 @@ def test_silent_login_other_error_anonymous_flushes_session(oidc_settings, error
     assert response.url == "/document/"
     assert not _session_exists(oidc_settings, session_key)
     _assert_session_cookie_deleted(oidc_settings, response)
+
+
+@responses.activate
+def test_silent_login_required_then_code_for_same_state(oidc_settings, monkeypatch):
+    """
+    A failed silent login consumes its state: a later callback carrying a code
+    for the same state (e.g. a replay of the authorization url) should abort the
+    login gracefully without exchanging the code.
+    """
+    oidc_settings.LOGIN_REDIRECT_URL_FAILURE = "/failure/"
+    client = Client()
+    state = _start_login(client, "/document/")
+
+    response = _login_required_callback(client, state)
+
+    assert response.status_code == 302
+    assert response.url == "/document/"
+
+    response = _code_callback(client, oidc_settings, state, monkeypatch)
+
+    assert response.status_code == 302
+    assert response.url == "/failure/"
+    responses.assert_call_count(oidc_settings.OIDC_OP_TOKEN_ENDPOINT, 0)
+    assert "_auth_user_id" not in client.session
+    assert not UserModel.objects.filter(email="test@example.com").exists()
