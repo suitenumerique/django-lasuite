@@ -1221,7 +1221,7 @@ def test_view_callback_silent_login_with_missing_state():
     return_value="/homepage/",
 )
 def test_view_callback_silent_login_with_valid_state(mocked_success_url):
-    """Silent login failure with valid state should redirect and keep state for potential retry."""
+    """Silent login failure with valid state should redirect and consume the state."""
     user = factories.UserFactory()
 
     request = RequestFactory().get("/callback/", data={"error": "login_required", "state": "valid_state"})
@@ -1244,10 +1244,11 @@ def test_view_callback_silent_login_with_valid_state(mocked_success_url):
     assert response.url == "/homepage/"
     # The silent flag should be cleaned up
     assert not request.session.get("silent")
-    # CRITICAL: The state should NOT be deleted on error=login_required
-    # because the SSO provider might send another callback with the actual code
-    # using the same state shortly after
-    assert "valid_state" in request.session.get("oidc_states", {})
+    # The state is consumed: the identity provider never sends a second
+    # callback for the same authorization request
+    assert "oidc_states" not in request.session
+    # The session of an authenticated user is kept
+    assert request.session.session_key is not None
 
 
 @mock.patch.object(

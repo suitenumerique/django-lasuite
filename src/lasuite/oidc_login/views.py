@@ -748,10 +748,10 @@ class OIDCAuthenticationCallbackView(MozillaOIDCAuthenticationCallbackView):
         # Validate state parameter even during silent login failures to prevent CSRF
         if error == "login_required" and request.session.get("silent"):
             if state and state in request.session.get("oidc_states", {}):
-                # Keep state for potential subsequent SSO callback with authorization code
-                del request.session["silent"]
-                request.session.save()
-                return HttpResponseRedirect(self.success_url)
+                # success_url reads the session: compute it before the clean up
+                redirect_url = self.success_url
+                self.clean_up_silent_login(state)
+                return HttpResponseRedirect(redirect_url)
             msg = "OIDC callback state validation failed during silent login"
             raise SuspiciousOperation(msg)
 
@@ -786,12 +786,46 @@ class OIDCAuthenticationCallbackView(MozillaOIDCAuthenticationCallbackView):
         really a failure - it just means the user needs to log in manually.
         """
         if self.request.session.get("silent", None):
-            # Clean up silent flag
-            del self.request.session["silent"]
-            self.request.session.save()
-            # Redirect to success URL (homepage) instead of failure page
-            return self.success_url
+            # Redirect to success URL (homepage) instead of failure page.
+            # success_url reads the session: compute it before the clean up
+            redirect_url = self.success_url
+            self.clean_up_silent_login(self.request.GET.get("state"))
+            return redirect_url
         return super().failure_url
+
+    def clean_up_silent_login(self, state):
+        """
+        Remove what a failed silent login left in the session.
+
+        The `oidc_states` entry of this state is always removed: an authorization
+        response is final, the identity provider never sends a second callback
+        for the same state. The `silent` flag and `oidc_login_next` are shared by
+        all the flows of the session, so they are only removed when no other
+        flow is pending (e.g. a silent login started in another tab).
+
+        An anonymous visitor would otherwise keep a session holding nothing but
+        leftover OIDC data: when the session ends up empty, it is flushed so the
+        record is deleted from the store and the session cookie is removed.
+        """
+        session = self.request.session
+
+        oidc_states = session.get("oidc_states")
+        if isinstance(oidc_states, dict):
+            oidc_states.pop(state, None)
+            if oidc_states:
+                session.modified = True
+                session.save()
+                return
+        session.pop("oidc_states", None)
+        session.pop("silent", None)
+        session.pop("oidc_login_next", None)
+
+        if not self.request.user.is_authenticated and not session.keys():
+            session.flush()
+            return
+
+        session.modified = True
+        session.save()
 
 
 class OIDCAuthenticationRequestView(MozillaOIDCAuthenticationRequestView):

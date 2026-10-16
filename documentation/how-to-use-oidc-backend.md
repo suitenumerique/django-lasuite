@@ -83,6 +83,15 @@ consumed the state), the login is aborted gracefully: the user is redirected
 to the failure url (`success_url` instead when already authenticated) rather
 than receiving an error page.
 
+A silent login (`?silent=true`) sends `prompt=none` to the identity provider.
+If the user has no SSO session, the provider answers with an error such as
+`login_required`. The user is then redirected to the `next` url (or
+`LOGIN_REDIRECT_URL`) and the OIDC data of this attempt is removed from the
+session. When the user is anonymous and the session holds nothing else, the
+session is flushed. Its record is deleted from the store and the session
+cookie is removed, so anonymous visitors don't keep a session after a failed
+silent login.
+
 ## Logout Functionality
 
 The package includes custom logout views that will properly sign the user out from both your application and the OIDC provider.
