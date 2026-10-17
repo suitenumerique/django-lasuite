@@ -93,6 +93,37 @@ class SecureAPIView(APIView):
 4. Backend validates returned claims (issuer, audience, etc.)
 5. If valid, request is processed; otherwise, authentication fails
 
+## Creating users on the fly
+
+By default, a token whose `sub` does not match any existing user is rejected with a 401:
+users must have logged in to the application once before calling it through the resource server.
+
+Set `OIDC_RS_CREATE_USER` to create them on the fly instead:
+
+```python
+OIDC_RS_CREATE_USER = True  # Default: False
+
+# Optional: the backend used to get or create the unknown user.
+OIDC_RS_USER_CREATION_BACKEND_CLASS = "lasuite.oidc_login.backends.OIDCAuthenticationBackend"
+```
+
+When the introspected `sub` is unknown, the resource server calls the
+`get_or_create_user` method of `OIDC_RS_USER_CREATION_BACKEND_CLASS`, as a regular OIDC login would.
+The introspection response rarely contains the user's email or name, so this backend requests the
+userinfo endpoint (`OIDC_OP_USER_ENDPOINT`) with the same access token. It then applies the usual
+login rules: essential claims, email fallback, `OIDC_CREATE_USER`, and so on.
+
+Point `OIDC_RS_USER_CREATION_BACKEND_CLASS` to your project's OIDC authentication backend to get
+the same behavior as your login flow (extra claims, access checks, post-creation hooks).
+
+Notes:
+- Known users are still resolved from the introspection response only, so the userinfo endpoint is
+  requested once per user, on their first call.
+- The access token must carry the scopes the userinfo endpoint needs to return the claims your
+  backend expects (e.g. `email`).
+- If the user returned by the backend does not have the introspected `sub`, authentication fails
+  and the user creation (or update) is rolled back.
+
 ## Advanced: JWT Resource Server
 
 For JWT-based introspection (RFC 9701), use the `JWTResourceServerBackend`:
