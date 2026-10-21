@@ -402,7 +402,7 @@ def test_verify_user_info_inactive(resource_server_backend):
     introspection_response = {"active": False, "scope": "groups"}
 
     with patch.object(Logger, "info") as mock_logger_info:
-        with pytest.raises(SuspiciousOperation, match="Introspected user is not active"):
+        with pytest.raises(AuthenticationFailed, match="Introspected user is not active"):
             resource_server_backend._verify_user_info(introspection_response)
 
         mock_logger_info.assert_called_once_with("Token introspection refused because user is not active")
@@ -531,7 +531,7 @@ def test_full_authentication_with_inactive_user(caplog, resource_server_backend)
         body=json.dumps({"iss": "https://auth.server.com", "active": False}),
     )
 
-    with pytest.raises(SuspiciousOperation, match="Introspected user is not active"):
+    with pytest.raises(AuthenticationFailed, match="Introspected user is not active"):
         resource_server_backend.get_user_info_with_introspection("access_token")
 
     assert "Token introspection refused because user is not active" in caplog.text
@@ -564,7 +564,7 @@ def test_full_jwt_authentication_with_inactive_user(
         )
     )
 
-    with pytest.raises(SuspiciousOperation, match="Introspected user is not active"):
+    with pytest.raises(AuthenticationFailed, match="Introspected user is not active"):
         jwt_resource_server_backend.get_user_info_with_introspection("access_token")
 
     assert "Token introspection refused because user is not active" in caplog.text

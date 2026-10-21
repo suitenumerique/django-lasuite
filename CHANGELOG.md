@@ -20,12 +20,14 @@ and this project adheres to
 ### Fixed
 
 - 🐛(malware) only launch the pending analyses of the active backend
+- 🐛(oidc) raise an authentication failure when the introspected user is not
+  active
 
 ## [0.0.31] - 2026-10-16
 
 ### Added
 
-- ✨(malware) add ICAP backend to scan files with an ICAP-compatible 
+- ✨(malware) add ICAP backend to scan files with an ICAP-compatible
   antivirus engine
 
 ### Fixed

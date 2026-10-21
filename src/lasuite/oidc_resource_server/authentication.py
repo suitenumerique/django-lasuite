@@ -97,7 +97,6 @@ class ResourceServerAuthentication(OIDCAuthentication):
 
         try:
             user = self.backend.get_or_create_user(access_token, None, user_info)
-
         except SuspiciousOperation as exc:
             logger.info("Login failed: %s", exc)
             raise exceptions.AuthenticationFailed("Login failed") from exc

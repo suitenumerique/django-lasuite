@@ -9,7 +9,7 @@ from joserfc import jwe as jose_jwe
 from joserfc import jwt as jose_jwt
 from joserfc.jwk import RSAKey
 from rest_framework.request import Request as DRFRequest
-from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED
+from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED
 
 from lasuite.oidc_resource_server.authentication import ResourceServerAuthentication, get_resource_server_backend
 from tests.factories import UserFactory
@@ -294,7 +294,8 @@ def test_resource_server_authentication_class_inactive_user(client, settings):
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {build_authorization_bearer('some_token')}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST  # Suspicious operation
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["detail"] == "Introspected user is not active"
 
 
 @responses.activate
@@ -385,4 +386,5 @@ def test_jwt_resource_server_authentication_class_inactive_user(  # pylint: disa
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {build_authorization_bearer('some_token')}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST  # Suspicious operation
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["detail"] == "Introspected user is not active"
