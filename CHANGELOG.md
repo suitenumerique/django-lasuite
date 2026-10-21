@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-21
+
 ### Added
 
 - ✨(malware) add `FileScannerBackend` as malware scanner backend
@@ -275,7 +277,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.0.31...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.1.0...main
+[0.1.0]: https://github.com/suitenumerique/django-lasuite/releases/v0.1.0
 [0.0.31]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.31
 [0.0.30]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.30
 [0.0.29]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.29
