@@ -91,7 +91,15 @@ class SecureAPIView(APIView):
 2. `ResourceServerBackend` intercepts the request
 3. Backend sends token to authorization server for introspection
 4. Backend validates returned claims (issuer, audience, etc.)
-5. If valid, request is processed; otherwise, authentication fails
+5. Backend checks that the user matching the token's `sub` is active
+6. If valid, request is processed; otherwise, authentication fails
+
+### Inactive users
+
+The `active` claim of the introspection response is about the token, not about the
+user: a token of an inactive local user (deactivated from the admin or merged into
+another account, for instance) is refused with a `401` response, just like DRF's
+session authentication would.
 
 ## Advanced: JWT Resource Server
 

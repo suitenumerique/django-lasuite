@@ -260,6 +260,52 @@ def test_jwt_resource_server_authentication_class(  # pylint: disable=unused-arg
 
 
 @responses.activate
+def test_resource_server_authentication_class_inactive_local_user(client, settings):
+    """
+    Test authentication with ResourceServerBackend when the local user is inactive.
+
+    Even with a valid, active token, a user deactivated locally (from the admin, or
+    because they were merged into another account) should not be allowed to
+    authenticate: unlike session authentication, the resource server would otherwise
+    keep accepting their token.
+    """
+    assert settings.OIDC_RS_BACKEND_CLASS == "lasuite.oidc_resource_server.backend.ResourceServerBackend"
+
+    settings.OIDC_RS_CLIENT_ID = "some_client_id"
+    settings.OIDC_RS_CLIENT_SECRET = "some_client_secret"
+
+    settings.OIDC_OP_URL = "https://oidc.example.com"
+    settings.OIDC_VERIFY_SSL = False
+    settings.OIDC_TIMEOUT = 5
+    settings.OIDC_PROXY = None
+    settings.OIDC_OP_JWKS_ENDPOINT = "https://oidc.example.com/jwks"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
+
+    responses.add(
+        responses.POST,
+        "https://oidc.example.com/introspect",
+        json={
+            "iss": "https://oidc.example.com",
+            "aud": "some_client_id",  # settings.OIDC_RS_CLIENT_ID
+            "sub": "very-specific-sub",
+            "client_id": "some_service_provider",
+            "scope": "openid groups",
+            "active": True,
+        },
+    )
+
+    UserFactory(sub="very-specific-sub", is_active=False)
+
+    response = client.get(
+        "/users/",
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {build_authorization_bearer('some_token')}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json() == {"detail": "User inactive or deleted."}
+
+
+@responses.activate
 def test_resource_server_authentication_class_inactive_user(client, settings):
     """
     Test authentication with ResourceServerBackend when user is inactive (active=False).
@@ -296,6 +342,105 @@ def test_resource_server_authentication_class_inactive_user(client, settings):
     )
     assert response.status_code == HTTP_401_UNAUTHORIZED
     assert response.json()["detail"] == "Introspected user is not active"
+
+
+@responses.activate
+def test_jwt_resource_server_authentication_class_inactive_local_user(  # pylint: disable=unused-argument
+    client, jwt_resource_server_backend, settings
+):
+    """
+    Test authentication with JWTResourceServerBackend when the local user is inactive.
+
+    Even with a valid, active token, a user deactivated locally (from the admin, or
+    because they were merged into another account) should not be allowed to
+    authenticate: unlike session authentication, the resource server would otherwise
+    keep accepting their token.
+    """
+    private_key = RSAKey.generate_key(private=True)
+    public_key = RSAKey.import_key(private_key.as_dict(private=False))
+
+    settings.OIDC_RS_PRIVATE_KEY_STR = private_key.as_pem(private=True).decode()
+    settings.OIDC_RS_ENCRYPTION_KEY_TYPE = "RSA"
+    settings.OIDC_RS_ENCRYPTION_ENCODING = "A256GCM"
+    settings.OIDC_RS_ENCRYPTION_ALGO = "RSA-OAEP"
+    settings.OIDC_RS_SIGNING_ALGO = "RS256"
+    settings.OIDC_RS_CLIENT_ID = "some_client_id"
+    settings.OIDC_RS_CLIENT_SECRET = "some_client_secret"
+
+    settings.OIDC_OP_URL = "https://oidc.example.com"
+    settings.OIDC_VERIFY_SSL = False
+    settings.OIDC_TIMEOUT = 5
+    settings.OIDC_PROXY = None
+    settings.OIDC_OP_JWKS_ENDPOINT = "https://oidc.example.com/jwks"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
+
+    # Mock the JWKS endpoint
+    public_jwk = private_key.as_dict(
+        private=False,
+        kty=settings.OIDC_RS_ENCRYPTION_KEY_TYPE,
+        alg=settings.OIDC_RS_SIGNING_ALGO,
+        use="sig",
+        kid="1234567890",
+    )
+    responses.add(
+        responses.GET,
+        settings.OIDC_OP_JWKS_ENDPOINT,
+        body=json.dumps({"keys": [public_jwk]}),
+    )
+
+    def encrypt_jwt(json_data):
+        """Encrypt the JWT token for the backend to decrypt."""
+        token = jose_jwt.encode(
+            {
+                "kid": "1234567890",
+                "alg": settings.OIDC_RS_SIGNING_ALGO,
+            },
+            json_data,
+            private_key,
+            algorithms=[settings.OIDC_RS_SIGNING_ALGO],
+        )
+
+        return jose_jwe.encrypt_compact(
+            protected={
+                "alg": settings.OIDC_RS_ENCRYPTION_ALGO,
+                "enc": settings.OIDC_RS_ENCRYPTION_ENCODING,
+            },
+            plaintext=token,
+            public_key=public_key,
+            algorithms=[
+                settings.OIDC_RS_ENCRYPTION_ALGO,
+                settings.OIDC_RS_ENCRYPTION_ENCODING,
+            ],
+        )
+
+    responses.add(
+        responses.POST,
+        "https://oidc.example.com/introspect",
+        body=encrypt_jwt(
+            {
+                "iss": "https://oidc.example.com",
+                "aud": "some_client_id",
+                "token_introspection": {
+                    "sub": "very-specific-sub",
+                    "iss": "https://oidc.example.com",
+                    "aud": "some_client_id",
+                    "client_id": "some_service_provider",
+                    "scope": "openid groups",
+                    "active": True,
+                },
+            }
+        ),
+    )
+
+    UserFactory(sub="very-specific-sub", is_active=False)
+
+    response = client.get(
+        "/users/",
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {build_authorization_bearer('some_token')}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json() == {"detail": "User inactive or deleted."}
 
 
 @responses.activate

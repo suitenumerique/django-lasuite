@@ -19,6 +19,7 @@ and this project adheres to
 
 ### Fixed
 
+- 🔒️(oidc) refuse the resource server token of an inactive user
 - 🐛(malware) only launch the pending analyses of the active backend
 - 🐛(oidc) raise an authentication failure when the introspected user is not
   active

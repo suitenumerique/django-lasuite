@@ -9,6 +9,7 @@ from functools import cache
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.utils.module_loading import import_string
+from django.utils.translation import gettext_lazy as _
 from mozilla_django_oidc.contrib.drf import OIDCAuthentication
 from mozilla_django_oidc.utils import parse_www_authenticate_header
 from requests.exceptions import HTTPError
@@ -65,7 +66,9 @@ class ResourceServerAuthentication(OIDCAuthentication):
          - to be able to introspect the access token earlier (doing it in the
            get_user method would be too late);
          - to store the introspected token audience inside the request to allow the
-           views to use it later (for permission restriction).
+           views to use it later (for permission restriction);
+         - to refuse the token of an inactive user, which the session authentication
+           of the API would refuse too.
 
         The implementation is still highly inspired from the parent class.
         """
@@ -104,6 +107,12 @@ class ResourceServerAuthentication(OIDCAuthentication):
         if not user:
             msg = "Login failed: No user found for the given access token."
             raise exceptions.AuthenticationFailed(msg)
+
+        # Custom addition: refuse the request when the user of the token is inactive.
+        # The introspection 'active' claim is about the token, not about the user.
+        if not user.is_active:
+            logger.info("Login failed: the user of the access token is inactive")
+            raise exceptions.AuthenticationFailed(_("User inactive or deleted."))
 
         # Custom addition: store the token audience in the request
         # Note: at this stage, the request is a "drf_request" object
