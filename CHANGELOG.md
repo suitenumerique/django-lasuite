@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 📝(oidc) correct resource server client credentials in the setup guide
+
 ## [0.1.0] - 2026-10-21
 
 ### Added

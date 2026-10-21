@@ -38,8 +38,8 @@ YOUR_PRIVATE_KEY_HERE
 OIDC_RS_ENCRYPTION_KEY_TYPE = "RSA"  # Key type (RSA, EC, etc.)
 
 # Client credentials
-OIDC_RP_CLIENT_ID = "your-client-id"
-OIDC_RP_CLIENT_SECRET = "your-client-secret"
+OIDC_RS_CLIENT_ID = "your-client-id"
+OIDC_RS_CLIENT_SECRET = "your-client-secret"
 
 # Authorization server endpoints
 OIDC_OP_URL = "https://your-provider.com/"
@@ -48,6 +48,10 @@ OIDC_OP_USER_ENDPOINT = "https://your-provider.com/userinfo"
 OIDC_OP_INTROSPECTION_ENDPOINT = "https://your-provider.com/token/introspect"
 OIDC_OP_USER_ENDPOINT_FORMAT = "AUTO"  # AUTO, JSON, or JWT
 ```
+
+The `OIDC_RS_CLIENT_ID` and `OIDC_RS_CLIENT_SECRET` settings identify the resource
+server's client for token introspection. They are distinct from the `OIDC_RP_*`
+settings used for OIDC login.
 
 ### URLs Configuration
 
