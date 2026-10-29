@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ➕(django) add django 6.0 and 6.1 to tox matrix
+
 ### Fixed
 
 - 📝(oidc) correct resource server client credentials in the setup guide
