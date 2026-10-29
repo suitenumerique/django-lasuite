@@ -17,14 +17,14 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       with:
         fetch-depth: 0  # Get full history for proper versioning
     
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
       with:
-        python-version: '3.14'
+        python-version: '3.15'
     
     - name: Install build dependencies
       run: |
@@ -38,7 +38,7 @@ jobs:
       run: twine check dist/*
     
     - name: Publish package distributions to PyPI
-      uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+      uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
       # Use TestPyPI for testing
       #with:
       #  repository-url: https://test.pypi.org/legacy/
