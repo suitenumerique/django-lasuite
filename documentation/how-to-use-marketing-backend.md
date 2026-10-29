@@ -4,6 +4,12 @@ If you need a marketing service in the application you are developping, this mod
 
 The list of backends available and what they are able to do is subject to evolution.
 
+## Installation
+
+```bash
+pip install "django-lasuite[marketing]"
+```
+
 ## Global idea
 
 A backend should inherit from `lasuite.marketing.backends.base.BaseBackend` class and implement the abstract methods declared in it.

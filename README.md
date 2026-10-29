@@ -4,9 +4,21 @@ A Django library for the common requirement for the "La Suite numérique" projec
 
 ## Installation
 
-```bash
-pip install django-lasuite
-```
+The base package only depends on Django. Each application declares its own
+dependencies as an extra, so you only install what you use:
+
+| Application                      | Install command                                    |
+|----------------------------------|----------------------------------------------------|
+| `lasuite.admin`, `lasuite.tools` | `pip install django-lasuite`                       |
+| `lasuite.configuration`          | `pip install django-lasuite[configuration]`        |
+| `lasuite.drf`                    | `pip install django-lasuite[drf]`                  |
+| `lasuite.malware_detection`      | `pip install django-lasuite[malware-detection]`    |
+| `lasuite.marketing`              | `pip install django-lasuite[marketing]`            |
+| `lasuite.oidc_login`             | `pip install django-lasuite[oidc-login]`           |
+| `lasuite.oidc_resource_server`   | `pip install django-lasuite[oidc-resource-server]` |
+
+Extras can be combined (`pip install "django-lasuite[oidc-login,marketing]"`),
+and `django-lasuite[all]` installs every application's dependencies.
 
 ## Quick Start
 

@@ -11,7 +11,7 @@ The `ResourceServerBackend` allows your application to act as an OAuth 2.0 resou
 1. Ensure you have the necessary packages installed:
 
 ```bash
-pip install django-lasuite
+pip install "django-lasuite[oidc-resource-server]"
 ```
 
 ## Configuration

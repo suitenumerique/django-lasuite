@@ -7,7 +7,7 @@ This guide explains how to integrate and configure the `OIDCAuthenticationBacken
 1. Ensure you have the necessary packages installed:
 
 ```bash
-pip install django-lasuite
+pip install "django-lasuite[oidc-login]"
 ```
 
 ## Configuration
