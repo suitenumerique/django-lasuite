@@ -90,6 +90,11 @@ only-include = ["src"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/lasuite"]
 
+[tool.uv]
+# Rebuild the local package when its sources change, not only pyproject.toml,
+# so `uv run --with .` never runs a stale cached build.
+cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*" }]
+
 [tool.pytest.ini_options]
 python_files = "test_*.py"
 testpaths = ["tests"]

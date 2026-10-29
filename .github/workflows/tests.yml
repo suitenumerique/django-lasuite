@@ -74,6 +74,41 @@ jobs:
       - name: Lint code with ruff
         run: ~/.local/bin/ruff check .
 
+  check-extras:
+    name: check extra ${{ matrix.extra || 'none' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - extra: ""
+            apps: admin tools
+          - extra: configuration
+            apps: configuration
+          - extra: drf
+            apps: drf
+          - extra: malware-detection
+            apps: malware_detection
+          - extra: marketing
+            apps: marketing
+          - extra: oidc-login
+            apps: oidc_login
+          - extra: oidc-resource-server
+            apps: oidc_resource_server
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Import the applications with only their extra installed
+        run: >
+          uv run --isolated --no-project --python 3.14
+          --with ".${{ matrix.extra && format('[{0}]', matrix.extra) || '' }}"
+          python -I scripts/check_extra_imports.py ${{ matrix.apps }}
+
   test-pytest:
     name: test with ${{ matrix.python }}
     runs-on: ubuntu-latest

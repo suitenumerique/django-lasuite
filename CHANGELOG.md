@@ -11,6 +11,7 @@ and this project adheres to
 ### Added
 
 - ➕(django) add django 6.0 and 6.1 to tox matrix
+- 👷(ci) check that each extra installs its application dependencies
 
 ### Changed
 
