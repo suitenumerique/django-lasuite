@@ -12,6 +12,10 @@ and this project adheres to
 
 - 📝(oidc) correct resource server client credentials in the setup guide
 
+### Removed
+
+- ➖(django) remove unmaintained version of django
+
 ## [0.1.0] - 2026-10-21
 
 ### Added
