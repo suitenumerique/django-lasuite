@@ -9,6 +9,7 @@ which is still not merged.
 import json
 import logging
 import time
+from http import HTTPStatus
 from urllib.parse import quote, urlencode
 
 import requests
@@ -18,7 +19,6 @@ from django.urls import reverse
 from django.utils.crypto import get_random_string
 from django.utils.module_loading import import_string
 from mozilla_django_oidc.middleware import SessionRefresh
-from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED
 
 from lasuite.oidc_login.backends import OIDCAuthenticationBackend, get_oidc_refresh_token, store_tokens
 
@@ -152,7 +152,7 @@ class RefreshOIDCAccessToken(SessionRefresh):
             refresh_url = self._prepare_reauthorization(request)
             xhr_response_json["refresh_url"] = refresh_url
 
-        xhr_response = JsonResponse(xhr_response_json, status=HTTP_401_UNAUTHORIZED)
+        xhr_response = JsonResponse(xhr_response_json, status=HTTPStatus.UNAUTHORIZED)
         if "refresh_url" in xhr_response_json:
             xhr_response["refresh_url"] = xhr_response_json["refresh_url"]
         return xhr_response
@@ -203,7 +203,7 @@ class RefreshOIDCAccessToken(SessionRefresh):
             logger.debug("http error %s when refreshing access token", status_code)
             # OAuth error response will be a 400 for various situations, including
             # an expired token. https://datatracker.ietf.org/doc/html/rfc6749#section-5.2
-            return self.finish(request, prompt_reauth=status_code == HTTP_400_BAD_REQUEST)
+            return self.finish(request, prompt_reauth=status_code == HTTPStatus.BAD_REQUEST)
         except json.JSONDecodeError:
             logger.debug("malformed response when refreshing access token")
             # Don't prompt for reauth as this could be a temporary problem
