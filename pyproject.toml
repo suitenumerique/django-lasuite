@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "django-lasuite"
-version = "0.1.0"
+version = "1.0.0"
 description = "Django La Suite - A Django library"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,7 +13,7 @@ authors = [
     {name = "DINUM", email = "dev@mail.numerique.gouv.fr"},
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Framework :: Django",
     "Framework :: Django :: 5.2",
     "Framework :: Django :: 6.0",
