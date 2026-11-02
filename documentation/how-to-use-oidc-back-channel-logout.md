@@ -39,7 +39,7 @@ urlpatterns = [
 ]
 ```
 
-The back-channel logout endpoint will be available at `<base-URL>/back-channel-logout/`.
+The back-channel logout endpoint will be available at `<base-URL>/backchannel-logout/`.
 
 
 ### Set up the OIDC Provider accordingly

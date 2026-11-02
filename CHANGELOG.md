@@ -22,6 +22,7 @@ and this project adheres to
 ### Fixed
 
 - 📝(oidc) correct resource server client credentials in the setup guide
+- 📝(oidc) correct backchannel-logout URL in setup guide
 
 ### Removed
 
