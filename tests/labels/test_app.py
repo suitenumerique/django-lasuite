@@ -11,8 +11,12 @@ def test_labels_app_is_installed():
     assert config.label == "labels"
 
 
-def test_labels_app_ships_no_model_yet():
-    """The kernel commits must not create any table."""
+def test_labels_app_ships_the_three_models():
+    """The app persists profiles, dimensions and the audit journal."""
     config = apps.get_app_config("labels")
 
-    assert list(config.get_models()) == []
+    assert sorted(model.__name__ for model in config.get_models()) == [
+        "LabelAuditEvent",
+        "LabelDimension",
+        "LabelProfile",
+    ]

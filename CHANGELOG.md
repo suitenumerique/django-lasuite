@@ -15,6 +15,7 @@ and this project adheres to
 - 🏷️(labels) add the product lattice and its atom encoding
 - 🏷️(labels) add the label value object
 - 🏷️(labels) add the reusable lattice contract suite
+- 🏷️(labels) add the label profile, dimensions and audit models
 
 ## [1.0.0] - 2026-10-30
 
