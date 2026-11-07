@@ -11,6 +11,7 @@ and this project adheres to
 ### Added
 
 - 🏷️(labels) introduce the labels application
+- 🏷️(labels) add the join registry for label dimensions
 
 ## [1.0.0] - 2026-10-30
 
