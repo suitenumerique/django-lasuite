@@ -191,11 +191,15 @@ class LabelProfile(models.Model):
         return hashlib.sha256(canonical_json(self.semantic_payload()).encode()).hexdigest()
 
     def refresh_content_hash(self) -> str:
-        """Recompute and store the digest after a dimension change."""
+        """Recompute and store the digest. Clear the compile cache when it changes."""
         digest = self.compute_content_hash()
         if digest != self.content_hash:
             type(self).objects.filter(pk=self.pk).update(content_hash=digest)
             self.content_hash = digest
+            # Import here: the compile module imports this module.
+            from . import compile as labels_compile  # noqa: PLC0415
+
+            labels_compile.clear()
         return digest
 
     def to_lattice(self) -> Lattice:
