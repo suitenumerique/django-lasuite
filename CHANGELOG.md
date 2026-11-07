@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- 🏷️(labels) introduce the labels application
+
 ## [1.0.0] - 2026-10-30
 
 ### Added
