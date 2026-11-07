@@ -17,6 +17,7 @@ and this project adheres to
 - 🏷️(labels) add the reusable lattice contract suite
 - 🏷️(labels) add the label profile, dimensions and audit models
 - 🏷️(labels) compile the active profile once per process
+- 🏷️(labels) validate the active profile with system checks
 
 ## [1.0.0] - 2026-10-30
 

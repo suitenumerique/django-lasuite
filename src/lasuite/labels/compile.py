@@ -116,7 +116,7 @@ def _remember(profile: CompiledProfile) -> CompiledProfile:
     global _current  # noqa: PLW0603
     if len(_local) >= LOCAL_CACHE_SIZE:
         _local.pop(next(iter(_local)))
-    _local[profile.content_hash] = profile
+    _local[profile.cache_key] = profile
     _current = profile
     return profile
 
@@ -154,6 +154,6 @@ def active_profile(*, force: bool = False) -> CompiledProfile:
         raise LabelError("no active label profile is configured")
 
     compiled = _remember(compile_profile(profile))
-    _store_hash(compiled.content_hash)
+    _store_hash(compiled.cache_key)
     _checked_at = time.monotonic()
     return compiled

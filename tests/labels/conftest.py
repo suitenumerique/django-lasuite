@@ -50,4 +50,4 @@ def reset_compiled_profile():
 @pytest.fixture
 def profile(db):
     """Return an active profile."""
-    return build_profile(state=LabelProfileState.ACTIVE)
+    return build_profile(state=LabelProfileState.ACTIVE, ceiling="DR")

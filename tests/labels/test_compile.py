@@ -32,7 +32,7 @@ def test_compiled_profile_carries_what_a_request_needs(profile):
     compiled = active_profile()
 
     assert compiled.code == "igi1300"
-    assert compiled.ceiling == ""
+    assert compiled.ceiling == "DR"
     assert compiled.version == 1
     assert compiled.content_hash == profile.content_hash
     assert compiled.lattice.codes == ("compartments", "sf", "tier")
