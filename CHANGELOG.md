@@ -13,6 +13,7 @@ and this project adheres to
 - 🏷️(labels) introduce the labels application
 - 🏷️(labels) add the join registry for label dimensions
 - 🏷️(labels) add the product lattice and its atom encoding
+- 🏷️(labels) add the label value object
 
 ## [1.0.0] - 2026-10-30
 
