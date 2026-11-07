@@ -355,7 +355,7 @@ def join_registry() -> dict[str, type[Join]]:
     for code, path in (getattr(settings, "LABELS_JOINS", None) or {}).items():
         try:
             registry[code] = import_string(path)
-        except ImportError as err:
+        except (ImportError, AttributeError) as err:
             raise JoinError(f"could not import join operator {code!r} from {path!r}") from err
     return registry
 

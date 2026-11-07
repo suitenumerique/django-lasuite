@@ -14,6 +14,7 @@ and this project adheres to
 - 🏷️(labels) add the join registry for label dimensions
 - 🏷️(labels) add the product lattice and its atom encoding
 - 🏷️(labels) add the label value object
+- 🏷️(labels) add the reusable lattice contract suite
 
 ## [1.0.0] - 2026-10-30
 
