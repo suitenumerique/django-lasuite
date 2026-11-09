@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "lasuite.labels",
     "lasuite.malware_detection",
     "lasuite.oidc_login",
     "test_project.user",
