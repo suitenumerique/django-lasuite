@@ -111,7 +111,7 @@ class ResourceServerBackend:
 
         When `OIDC_RS_CREATE_USER` is enabled and no user matches the introspected
         sub, the user is fetched or created by the `OIDC_RS_USER_CREATION_BACKEND_CLASS`
-        backend, as it would be on a regular OIDC login. The introspection response
+        backend, with the same rules as a regular OIDC login. The introspection response
         rarely contains the user's email or name, so that backend requests the
         userinfo endpoint with the same access token.
         """
@@ -121,18 +121,26 @@ class ResourceServerBackend:
 
         backend = import_string(self._user_creation_backend_class)()
 
-        # Roll back the creation (or the sub update of a user matched by email) if
-        # the userinfo endpoint does not describe the introspected user.
-        with transaction.atomic():
-            try:
-                user = backend.get_or_create_user(access_token, None, payload)
-            except HTTPError as err:
-                message = "Could not fetch user info"
-                logger.debug("%s. Exception:", message, exc_info=True)
-                raise SuspiciousOperation(message) from err
+        # Fetch and check the userinfo before touching the database, so the network
+        # call stays out of the transaction below.
+        try:
+            user_info = backend.get_userinfo(access_token, None, payload)
+        except HTTPError as err:
+            message = "Could not fetch user info"
+            logger.debug("%s. Exception:", message, exc_info=True)
+            raise SuspiciousOperation(message) from err
 
+        claims = backend.get_claims_from_userinfo(user_info)
+        if claims[backend.OIDC_USER_SUB_FIELD] != payload["sub"]:
+            logger.warning("User info sub does not match the introspected sub")
+            raise SuspiciousOperation("User info does not match the introspected user")
+
+        # A user matched by email keeps its former sub when the sub is immutable: it is
+        # not the introspected user, so roll back the update of its other fields.
+        with transaction.atomic():
+            user = backend.get_or_create_user_from_claims(claims)
             if user is not None and getattr(user, backend.OIDC_USER_SUB_FIELD) != payload["sub"]:
-                logger.warning("User info sub does not match the introspected sub")
+                logger.warning("User matched by email does not have the introspected sub")
                 raise SuspiciousOperation("User info does not match the introspected user")
 
         return user

@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(oidc-rs) allow to create unknown users on the fly with `OIDC_RS_CREATE_USER`
+
+### Changed
+
+- ♻️(oidc) split `get_or_create_user` of the login backend into reusable steps
+
 ## [1.0.0] - 2026-10-30
 
 ### Added
@@ -61,7 +69,6 @@ and this project adheres to
 
 ### Added
 
-- ✨(oidc-rs) allow to create unknown users on the fly with `OIDC_RS_CREATE_USER`
 - ✨(oidc) allow to send the RP-initiated logout request with POST
 
 ### Fixed

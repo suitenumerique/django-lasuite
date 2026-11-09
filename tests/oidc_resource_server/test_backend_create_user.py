@@ -1,10 +1,13 @@
 """Tests for the user creation of the Resource Server (RS) Backend."""
 
+import contextlib
+
 import pytest
 import responses
 from django.contrib.auth import get_user_model
 from django.core.exceptions import SuspiciousOperation
 
+from lasuite.oidc_resource_server import backend as backend_module
 from lasuite.oidc_resource_server.backend import ResourceServerBackend
 from tests.factories import UserFactory
 
@@ -93,18 +96,68 @@ def test_get_or_create_user_matches_existing_user_by_email(resource_server_backe
 
 
 @responses.activate
-def test_get_or_create_user_userinfo_sub_mismatch(resource_server_backend):
-    """A userinfo response describing another user is rejected and rolled back."""
+def test_get_or_create_user_userinfo_sub_mismatch(resource_server_backend, django_assert_num_queries):
+    """A userinfo response describing another user is rejected before any write."""
     responses.add(
         responses.GET,
         USERINFO_ENDPOINT,
         json={"sub": "other-sub", "email": "john@example.com"},
     )
 
-    with pytest.raises(SuspiciousOperation, match="User info does not match the introspected user"):
+    # Only the lookup of the introspected sub is run.
+    with (
+        django_assert_num_queries(1),
+        pytest.raises(SuspiciousOperation, match="User info does not match the introspected user"),
+    ):
         resource_server_backend.get_or_create_user("token", None, {"sub": "new-sub"})
 
     assert User.objects.count() == 0
+
+
+@responses.activate
+def test_get_or_create_user_email_match_with_immutable_sub(resource_server_backend, settings):
+    """A user matched by email that keeps its former sub is rejected and its update rolled back."""
+    settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = True
+    settings.OIDC_USER_SUB_FIELD_IMMUTABLE = True
+    existing_user = UserFactory(sub="old-sub", email="john@example.com", name="Old Name")
+    responses.add(
+        responses.GET,
+        USERINFO_ENDPOINT,
+        json={"sub": "new-sub", "email": "john@example.com", "first_name": "New", "last_name": "Name"},
+    )
+
+    with pytest.raises(SuspiciousOperation, match="User info does not match the introspected user"):
+        resource_server_backend.get_or_create_user("token", None, {"sub": "new-sub"})
+
+    existing_user.refresh_from_db()
+    assert existing_user.sub == "old-sub"
+    assert existing_user.name == "Old Name"
+
+
+def test_get_or_create_user_userinfo_outside_transaction(resource_server_backend, settings, monkeypatch, events):
+    """The userinfo is fetched and checked before the transaction, and only the store step runs in it."""
+    settings.OIDC_RS_USER_CREATION_BACKEND_CLASS = "tests.oidc_resource_server.test_backend_create_user.DummyBackend"
+    backend = ResourceServerBackend()
+    original_atomic = backend_module.transaction.atomic
+
+    @contextlib.contextmanager
+    def atomic_spy():
+        events.append("atomic:start")
+        with original_atomic():
+            yield
+        events.append("atomic:end")
+
+    monkeypatch.setattr(backend_module.transaction, "atomic", atomic_spy)
+
+    backend.get_or_create_user("token", None, {"sub": "new-sub"})
+
+    assert events == [
+        "get_userinfo",
+        "get_claims_from_userinfo",
+        "atomic:start",
+        "get_or_create_user_from_claims",
+        "atomic:end",
+    ]
 
 
 @responses.activate
@@ -147,11 +200,36 @@ def test_get_or_create_user_custom_creation_backend(resource_server_backend, set
     assert len(responses.calls) == 0
 
 
+EVENTS = []
+
+
+@pytest.fixture(name="events")
+def fixture_events():
+    """Return the list of the DummyBackend calls, emptied for each test."""
+    EVENTS.clear()
+    return EVENTS
+
+
 class DummyBackend:
     """Creation backend building users without requesting the userinfo endpoint."""
 
     OIDC_USER_SUB_FIELD = "sub"
 
+    def get_userinfo(self, access_token, id_token, payload):
+        """Return a userinfo built from the introspection payload."""
+        EVENTS.append("get_userinfo")
+        return {"sub": payload["sub"], "email": "dummy@example.com"}
+
+    def get_claims_from_userinfo(self, user_info):
+        """Return the userinfo as claims."""
+        EVENTS.append("get_claims_from_userinfo")
+        return user_info
+
+    def get_or_create_user_from_claims(self, claims):
+        """Create a user from the claims."""
+        EVENTS.append("get_or_create_user_from_claims")
+        return User.objects.create(**claims)
+
     def get_or_create_user(self, access_token, id_token, payload):
-        """Create a user from the introspection payload."""
-        return User.objects.create(sub=payload["sub"], email="dummy@example.com")
+        """Must not be called by the resource server."""
+        raise AssertionError("get_or_create_user must not be called")
