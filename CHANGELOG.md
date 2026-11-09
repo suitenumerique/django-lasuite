@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- 🏷️(labels) introduce the labels application
+- 🏷️(labels) add the join registry for label dimensions
+- 🏷️(labels) add the product lattice and its atom encoding
+- 🏷️(labels) add the label value object
+- 🏷️(labels) add the reusable lattice contract suite
+
 ## [1.0.0] - 2026-10-30
 
 ### Added
