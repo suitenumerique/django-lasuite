@@ -105,6 +105,26 @@ user: a token of an inactive local user (deactivated from the admin or merged in
 another account, for instance) is refused with a `401` response, just like DRF's
 session authentication would.
 
+## Creating users on the fly
+
+By default, a token whose `sub` does not match any existing user is rejected with a 401:
+users must have logged in to the application once before calling it through the resource server.
+
+Set `OIDC_RS_CREATE_USER` to create them on the fly instead:
+
+```python
+OIDC_RS_CREATE_USER = True  # Default: False
+OIDC_CREATE_USER = True  # Must be True with the default backend
+
+# Optional: the backend used to get or create the unknown user.
+OIDC_RS_USER_CREATION_BACKEND_CLASS = "lasuite.oidc_login.backends.OIDCAuthenticationBackend"
+```
+
+The unknown user is then fetched from the userinfo endpoint with the same access token, so the
+token must carry the scopes needed for the expected claims (e.g. `email`). It is created with the
+same rules as a regular login.
+If the userinfo `sub` does not match the introspected one, authentication fails.
+
 ## Advanced: JWT Resource Server
 
 For JWT-based introspection (RFC 9701), use the `JWTResourceServerBackend`:
