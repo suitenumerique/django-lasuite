@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-18
+
 ### Added
 
 - ✨(oidc-rs) allow to create unknown users on the fly with
@@ -305,7 +307,9 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v0.1.0...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v1.1.0...main
+[1.1.0]: https://github.com/suitenumerique/django-lasuite/releases/v1.1.0
+[1.0.0]: https://github.com/suitenumerique/django-lasuite/releases/v1.0.0
 [0.1.0]: https://github.com/suitenumerique/django-lasuite/releases/v0.1.0
 [0.0.31]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.31
 [0.0.30]: https://github.com/suitenumerique/django-lasuite/releases/v0.0.30
