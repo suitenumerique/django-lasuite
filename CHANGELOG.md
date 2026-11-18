@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ⚡️(malware) index the detections by status and creation date
+
 ## [1.0.0] - 2026-10-30
 
 ### Added
