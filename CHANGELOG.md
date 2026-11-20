@@ -12,6 +12,8 @@ and this project adheres to
 
 - ✨(oidc-rs) allow to create unknown users on the fly with
   `OIDC_RS_CREATE_USER`
+- ✨(oidc) add `get_fresh_access_token` to call a resource server without
+  logging the user out when the token can't be refreshed
 
 ### Changed
 
