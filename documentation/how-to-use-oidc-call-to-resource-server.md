@@ -111,3 +111,23 @@ This middleware will:
 
 If token refresh fails, the middleware will return a 401 response with a `refresh_url` header to redirect the user to re-authenticate.
 
+
+### Optional calls (without logging the user out)
+
+The decorator and the middleware answer 401 "session expired" when the access
+token can't be refreshed, which sends the user back to the login page. When the
+call to the resource server is optional (suggestions while typing, a badge, a
+count), use `get_fresh_access_token` instead: it refreshes the token if needed
+and returns `None` when there is no usable one, so the view can fall back to
+something else.
+
+```python
+from lasuite.oidc_login.tokens import get_fresh_access_token
+
+
+def suggestions(request):
+    access_token = get_fresh_access_token(request)
+    if access_token is None:
+        return JsonResponse({"results": local_suggestions(request)})
+    ...
+```

@@ -144,3 +144,9 @@ OIDC_RS_SCOPES = ["groups"]
 # Django Admin
 ADMIN_HEADER_BACKGROUND = "#0f5132"
 ADMIN_HEADER_COLOR = "#ffffff"
+
+#  - Contact search module
+LASUITE_CONTACT_SEARCH = {
+    "BACKEND": "lasuite.contact_search.backends.dummy.DummyContactSearchBackend",
+    "PARAMETERS": {},
+}

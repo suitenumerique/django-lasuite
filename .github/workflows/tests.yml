@@ -85,6 +85,8 @@ jobs:
             apps: admin tools
           - extra: configuration
             apps: configuration
+          - extra: contact-search
+            apps: contact_search
           - extra: drf
             apps: drf
           - extra: malware-detection
