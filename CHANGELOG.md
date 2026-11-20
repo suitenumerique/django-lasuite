@@ -14,6 +14,8 @@ and this project adheres to
   `OIDC_RS_CREATE_USER`
 - ✨(oidc) add `get_fresh_access_token` to call a resource server without
   logging the user out when the token can't be refreshed
+- ✨(contact-search) add pluggable contact search backends, a La Suite
+  Contacts backend and a viewset for share modals
 
 ### Changed
 

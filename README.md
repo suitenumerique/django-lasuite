@@ -11,6 +11,7 @@ dependencies as an extra, so you only install what you use:
 |----------------------------------|----------------------------------------------------|
 | `lasuite.admin`, `lasuite.tools` | `pip install django-lasuite`                       |
 | `lasuite.configuration`          | `pip install django-lasuite[configuration]`        |
+| `lasuite.contact_search`         | `pip install django-lasuite[contact-search]`       |
 | `lasuite.drf`                    | `pip install django-lasuite[drf]`                  |
 | `lasuite.malware_detection`      | `pip install django-lasuite[malware-detection]`    |
 | `lasuite.marketing`              | `pip install django-lasuite[marketing]`            |
