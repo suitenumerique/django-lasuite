@@ -68,7 +68,7 @@ lint: format  ## Run the linter
 .PHONY: lint
 
 test:  ## Run the tests
-	@cd tests && PYTHON_PATH=.:$(PYTHON_PATH) DJANGO_SETTINGS_MODULE=test_project.settings $(UV) run python -m pytest . -vvv
+	@$(UV) run pytest -vvv
 .PHONY: test
 
 build:  ## Build the project
