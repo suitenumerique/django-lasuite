@@ -16,6 +16,7 @@ and this project adheres to
 ### Changed
 
 - ♻️(oidc) split `get_or_create_user` of the login backend into reusable steps
+- 🔧(project) use uv everywhere
 
 ## [1.0.0] - 2026-10-30
 

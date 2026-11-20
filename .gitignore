@@ -42,9 +42,6 @@ htmlcov/
 coverage.xml
 *.cover
 
-# uv
-uv.lock
-
 # Editor/IDE specific
 .idea/
 .vscode/
