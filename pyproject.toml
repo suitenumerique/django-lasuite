@@ -80,8 +80,12 @@ marketing = [
 configuration = [
     "django-configurations>=2.5.1",
 ]
+contact-search = [
+    "django-lasuite[drf,oidc-login]",
+    "httpx>=0.28.1",
+]
 all = [
-    "django-lasuite[configuration,drf,malware-detection,marketing,oidc-login,oidc-resource-server]",
+    "django-lasuite[configuration,contact-search,drf,malware-detection,marketing,oidc-login,oidc-resource-server]",
 ]
 
 [tool.hatch.build.targets.sdist]
