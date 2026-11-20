@@ -35,7 +35,6 @@ ENV/
 
 # Unit test / coverage reports
 htmlcov/
-.tox/
 .coverage
 .coverage.*
 .cache

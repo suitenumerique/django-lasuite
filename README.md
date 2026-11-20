@@ -48,6 +48,13 @@ make install-dev
 make test
 ```
 
+To run the tests against a specific Python, Django or mozilla-django-oidc
+version, as the CI does:
+
+```bash
+uv run --python 3.12 --with "django~=6.0.0" --with "mozilla-django-oidc~=4.0" pytest
+```
+
 ### Code Quality
 
 ```bash

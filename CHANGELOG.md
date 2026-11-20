@@ -12,6 +12,10 @@ and this project adheres to
 
 - 🔧(project) use uv everywhere
 
+### Remove
+
+- ➖(project) drop tox and rely on the CI for versions compatibility checks
+
 ## [1.1.0] - 2026-11-18
 
 ### Added
@@ -22,6 +26,10 @@ and this project adheres to
 ### Changed
 
 - ♻️(oidc) split `get_or_create_user` of the login backend into reusable steps
+
+### Removed
+
+- ➖(project) drop tox and rely on the CI for versions compatibility checks
 
 ## [1.0.0] - 2026-10-30
 

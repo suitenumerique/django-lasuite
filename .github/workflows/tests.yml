@@ -118,44 +118,38 @@ jobs:
           python -I scripts/check_extra_imports.py ${{ matrix.apps }}
 
   test-pytest:
-    name: test with ${{ matrix.python }}
+    name: test with python ${{ matrix.python }}, django ${{ matrix.django }}, mozilla-django-oidc ${{ matrix.mozoidc }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python:
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.14"
-
+        python: ["3.11", "3.12", "3.13", "3.14"]
+        django: ["5.2", "6.0", "6.1"]
+        mozoidc: ["4", "5"]
+        exclude:
+          # Django 6.0+ requires Python 3.12+
+          - python: "3.11"
+            django: "6.0"
+          - python: "3.11"
+            django: "6.1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-      - name: Install the latest version of uv
+      - name: Install uv
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: "uv.lock"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install tox
-        run: uv tool install --python-preference only-managed --python 3.13 tox --with tox-uv --with tox-gh
-      - name: Install Python
-        if: matrix.python != '3.13'
-        run: uv python install --python-preference only-managed ${{ matrix.python }}
-      - name: Setup test suite
-        run: tox run -vv --notest --skip-missing-interpreters false
-        env:
-          TOX_GH_MAJOR_MINOR: ${{ matrix.python }}
       - name: Run test suite
-        run: tox run --skip-pkg-install
-        env:
-          TOX_GH_MAJOR_MINOR: ${{ matrix.python }}
+        run: >
+          uv run --locked --python ${{ matrix.python }}
+          --with "django~=${{ matrix.django }}.0"
+          --with "mozilla-django-oidc~=${{ matrix.mozoidc }}.0"
+          pytest --junitxml=junit.xml
       - name: Test Report
         uses: dorny/test-reporter@d1b5dff021aa968b288b02285a8bf47471c5928a # v3
         if: success() || failure()
         with:
-          name: Test Results (${{ matrix.python }})
-          path: .tox/py*/junit.xml
+          name: Test Results (python ${{ matrix.python }}, django ${{ matrix.django }}, mozilla-django-oidc ${{ matrix.mozoidc }})
+          path: junit.xml
           reporter: java-junit

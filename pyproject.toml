@@ -96,6 +96,8 @@ cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*" }]
 [tool.pytest.ini_options]
 python_files = "test_*.py"
 testpaths = ["tests"]
+pythonpath = [".", "tests"]
+DJANGO_SETTINGS_MODULE = "test_project.settings"
 
 [tool.ruff]
 line-length = 120
