@@ -43,16 +43,13 @@ help:  ## Display this help message
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(firstword $(MAKEFILE_LIST)) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(GREEN)%-30s$(RESET) %s\n", $$1, $$2}'
 .PHONY: help
 
-install:  ## Install the project
-	@$(UV) sync
+install:  ## Install the project without dev dependencies
+	@$(UV) sync --no-dev
 .PHONY: install
 
 install-dev:  ## Install the project with dev dependencies
-	@$(UV) sync --extra dev
+	@$(UV) sync
 .PHONY: install-dev
-
-install-build:  ## Install the project with build dependencies
-	@$(UV) sync --extra build
 
 clean:  ## Clean the project folder
 	@rm -rf build/
@@ -74,7 +71,7 @@ test:  ## Run the tests
 	@cd tests && PYTHON_PATH=.:$(PYTHON_PATH) DJANGO_SETTINGS_MODULE=test_project.settings $(UV) run python -m pytest . -vvv
 .PHONY: test
 
-build: install-build  ## Build the project
+build:  ## Build the project
 	@$(UV) build
 .PHONY: build
 

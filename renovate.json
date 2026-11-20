@@ -3,5 +3,5 @@
   "extends": ["github>suitenumerique/ci//renovate/default"],
   "dependencyDashboard": true,
   "labels": ["dependencies", "noChangeLog", "automated"],
-  "enabledManagers": ["docker-compose", "dockerfile", "github-actions" ,"npm", "setup-cfg", "pep621"]
+  "enabledManagers": ["docker-compose", "dockerfile", "github-actions" ,"npm", "pep621"]
 }
