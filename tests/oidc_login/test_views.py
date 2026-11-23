@@ -1391,7 +1391,7 @@ def _create_callback_request(settings, data, session_key=None):
     new_callable=mock.PropertyMock,
     return_value="/homepage/",
 )
-def test_view_callback_replay_after_successful_login(mocked_success_url, settings, monkeypatch):
+def test_view_callback_replay_after_successful_login(mocked_success_url, settings, monkeypatch, httpx2_mock):
     """
     Reproduce a callback replay after a successful login.
 
@@ -1414,11 +1414,11 @@ def test_view_callback_replay_after_successful_login(mocked_success_url, setting
         json={"access_token": "test-access-token"},
         status=200,
     )
-    responses.add(
-        responses.GET,
-        settings.OIDC_OP_USER_ENDPOINT,
+    httpx2_mock.add_response(
+        method="GET",
+        url=settings.OIDC_OP_USER_ENDPOINT,
         json={"sub": "123", "email": "test@example.com"},
-        status=200,
+        status_code=200,
     )
 
     # - First callback: a valid state is stored in the session and consumed

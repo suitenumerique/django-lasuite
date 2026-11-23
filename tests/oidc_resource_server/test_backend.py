@@ -7,7 +7,6 @@ from logging import Logger
 from unittest.mock import ANY, Mock, patch
 
 import pytest
-import responses
 from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from joserfc.errors import InvalidClaimError, InvalidTokenError
@@ -343,10 +342,9 @@ def test_jwt_resource_server_backend_introspect_success(
     jwt_rs_backend._decode.assert_called_once_with(jws, "public_key_set")
 
 
-@responses.activate
-def test_introspect_introspection_failure(resource_server_backend):
+def test_introspect_introspection_failure(resource_server_backend, httpx2_mock):
     """Test '_introspect' method when introspection to the AS fails."""
-    responses.post("https://auth.server.com/introspect", status=500)
+    httpx2_mock.add_response(method="POST", url="https://auth.server.com/introspect", status_code=500)
 
     with patch.object(Logger, "debug") as mock_logger_debug:
         expected_message = "Could not fetch introspection"
@@ -360,10 +358,9 @@ def test_introspect_introspection_failure(resource_server_backend):
     "lasuite.oidc_resource_server.utils.import_private_key_from_settings",
     return_value="private_key",
 )
-@responses.activate
 # pylint: disable=unused-argument
 def test_jwt_resource_server_backend_introspect_public_key_import_failure(
-    mock_import_private_key_from_settings, jwt_resource_server_backend
+    mock_import_private_key_from_settings, jwt_resource_server_backend, httpx2_mock
 ):
     """Test '_introspect' method when fetching AS's jwks fails."""
     token = "valid_token"
@@ -373,7 +370,7 @@ def test_jwt_resource_server_backend_introspect_public_key_import_failure(
     jwt_resource_server_backend._authorization_server_client.get_introspection = Mock(return_value=jwe)
     jwt_resource_server_backend._decrypt = Mock(return_value=jws)
 
-    responses.get("https://auth.server.com/jwks", status=500)
+    httpx2_mock.add_response(method="GET", url="https://auth.server.com/jwks", status_code=500)
 
     with patch.object(Logger, "debug") as mock_logger_debug:
         expected_message = "Could not get authorization server JWKS"
@@ -518,17 +515,17 @@ def test_get_user_no_user_identification(resource_server_backend):
         mock_logger_debug.assert_called_once_with(expected_message)
 
 
-@responses.activate
-def test_full_authentication_with_inactive_user(caplog, resource_server_backend):
+def test_full_authentication_with_inactive_user(caplog, resource_server_backend, httpx2_mock):
     """
     Test the full authentication process when the user is inactive.
 
     In such case the introspection response will only contain the active claim.
     """
-    responses.post(
-        "https://auth.server.com/introspect",
-        status=200,
-        body=json.dumps({"iss": "https://auth.server.com", "active": False}),
+    httpx2_mock.add_response(
+        method="POST",
+        url="https://auth.server.com/introspect",
+        status_code=200,
+        text=json.dumps({"iss": "https://auth.server.com", "active": False}),
     )
 
     with pytest.raises(AuthenticationFailed, match="Introspected user is not active"):
@@ -537,13 +534,12 @@ def test_full_authentication_with_inactive_user(caplog, resource_server_backend)
     assert "Token introspection refused because user is not active" in caplog.text
 
 
-@responses.activate
 @patch(
     "lasuite.oidc_resource_server.utils.import_private_key_from_settings",
     return_value="private_key",
 )
 def test_full_jwt_authentication_with_inactive_user(
-    mock_import_private_key_from_settings, caplog, jwt_resource_server_backend
+    mock_import_private_key_from_settings, caplog, jwt_resource_server_backend, httpx2_mock
 ):
     """
     Test the full authentication process when the user is inactive.
@@ -570,15 +566,15 @@ def test_full_jwt_authentication_with_inactive_user(
     assert "Token introspection refused because user is not active" in caplog.text
 
 
-@responses.activate
-def test_get_user_info_with_introspection_success(settings, resource_server_backend):
+def test_get_user_info_with_introspection_success(settings, resource_server_backend, httpx2_mock):
     """Test 'get_user_info_with_introspection' with a successful response."""
     settings.OIDC_RS_AUDIENCE_CLAIM = "client_id"
 
-    responses.post(
-        "https://auth.server.com/introspect",
-        status=200,
-        body=json.dumps(
+    httpx2_mock.add_response(
+        method="POST",
+        url="https://auth.server.com/introspect",
+        status_code=200,
+        text=json.dumps(
             {
                 "iss": "https://auth.server.com",
                 "active": True,

@@ -6,13 +6,13 @@ import contextlib
 import logging
 from functools import cache
 
+import httpx2
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 from mozilla_django_oidc.contrib.drf import OIDCAuthentication
 from mozilla_django_oidc.utils import parse_www_authenticate_header
-from requests.exceptions import HTTPError
 from rest_framework import exceptions
 from rest_framework.status import HTTP_401_UNAUTHORIZED
 
@@ -82,7 +82,7 @@ class ResourceServerAuthentication(OIDCAuthentication):
         # and retrieve user info.
         try:
             user_info = self.backend.get_user_info_with_introspection(access_token)
-        except HTTPError as exc:
+        except httpx2.HTTPStatusError as exc:
             resp = exc.response
 
             # If the oidc provider returns 401, it means the token is invalid or that

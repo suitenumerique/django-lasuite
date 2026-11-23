@@ -53,7 +53,7 @@ def _login_required_callback(client, state):
     return client.get(reverse("oidc_authentication_callback"), data={"error": "login_required", "state": state})
 
 
-def _code_callback(client, settings, state, monkeypatch):
+def _code_callback(httpx2_mock, client, settings, state, monkeypatch):
     """Call the callback view with an authorization code, mocking the IdP."""
     monkeypatch.setattr(
         OIDCAuthenticationBackend,
@@ -61,11 +61,13 @@ def _code_callback(client, settings, state, monkeypatch):
         lambda *args, **kwargs: {"sub": "123", "email": "test@example.com"},
     )
     responses.add(responses.POST, settings.OIDC_OP_TOKEN_ENDPOINT, json={"access_token": "token"}, status=200)
-    responses.add(
-        responses.GET,
-        settings.OIDC_OP_USER_ENDPOINT,
+    httpx2_mock.add_response(
+        method="GET",
+        url=settings.OIDC_OP_USER_ENDPOINT,
+        # Not requested when the callback is rejected before the code exchange.
+        is_optional=True,
         json={"sub": "123", "email": "test@example.com"},
-        status=200,
+        status_code=200,
     )
     return client.get(reverse("oidc_authentication_callback"), data={"code": "some-code", "state": state})
 
@@ -105,7 +107,7 @@ def test_silent_login_required_anonymous_flushes_session(oidc_settings):
 
 @responses.activate
 @pytest.mark.parametrize("second_callback", ["login_required", "code"])
-def test_silent_login_required_with_another_pending_state(oidc_settings, monkeypatch, second_callback):
+def test_silent_login_required_with_another_pending_state(oidc_settings, monkeypatch, second_callback, httpx2_mock):
     """
     Two tabs sharing one session run a silent login at the same time: the first
     failed silent login should only consume its own state and keep the session
@@ -136,7 +138,7 @@ def test_silent_login_required_with_another_pending_state(oidc_settings, monkeyp
         assert not _session_exists(oidc_settings, session_key)
         _assert_session_cookie_deleted(oidc_settings, response)
     else:
-        response = _code_callback(client, oidc_settings, second_state, monkeypatch)
+        response = _code_callback(httpx2_mock, client, oidc_settings, second_state, monkeypatch)
 
         assert response.status_code == 302
         assert response.url == "/second/"
@@ -204,12 +206,12 @@ def test_silent_login_required_invalid_state(oidc_settings, state):
 
 
 @responses.activate
-def test_login_with_authorization_code(oidc_settings, monkeypatch):
+def test_login_with_authorization_code(oidc_settings, monkeypatch, httpx2_mock):
     """Regression: a normal (non-silent) login still works end to end."""
     client = Client()
     state = _start_login(client, "/document/", silent=False)
 
-    response = _code_callback(client, oidc_settings, state, monkeypatch)
+    response = _code_callback(httpx2_mock, client, oidc_settings, state, monkeypatch)
 
     assert response.status_code == 302
     assert response.url == "/document/"
@@ -238,7 +240,7 @@ def test_silent_login_other_error_anonymous_flushes_session(oidc_settings, error
 
 
 @responses.activate
-def test_silent_login_required_then_code_for_same_state(oidc_settings, monkeypatch):
+def test_silent_login_required_then_code_for_same_state(oidc_settings, monkeypatch, httpx2_mock):
     """
     A failed silent login consumes its state: a later callback carrying a code
     for the same state (e.g. a replay of the authorization url) should abort the
@@ -253,7 +255,7 @@ def test_silent_login_required_then_code_for_same_state(oidc_settings, monkeypat
     assert response.status_code == 302
     assert response.url == "/document/"
 
-    response = _code_callback(client, oidc_settings, state, monkeypatch)
+    response = _code_callback(httpx2_mock, client, oidc_settings, state, monkeypatch)
 
     assert response.status_code == 302
     assert response.url == "/failure/"

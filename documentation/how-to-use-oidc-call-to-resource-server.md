@@ -45,7 +45,7 @@ print(key.decode())  # Add this value to your settings
 Once you have configured these settings, your application can use the stored tokens to make authenticated requests to resource servers:
 
 ```python
-import requests
+import httpx2
 from django.http import JsonResponse
 
 
@@ -57,7 +57,7 @@ def call_resource_server(request):
         return JsonResponse({"error": "Not authenticated"}, status=401)
 
     # Make an authenticated request to the resource server
-    response = requests.get(
+    response = httpx2.get(
         "https://resource-server.example.com/api/resource",
         headers={"Authorization": f"Bearer {access_token}"},
     )
@@ -82,7 +82,7 @@ class SomeViewSet(GenericViewSet):
 
         # The call to the resource server
         access_token = request.session.get("oidc_access_token")
-        requests.get(
+        httpx2.get(
             "https://resource-server.example.com/api/resource",
             headers={"Authorization": f"Bearer {access_token}"},
         )

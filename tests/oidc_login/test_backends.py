@@ -305,7 +305,7 @@ def test_authentication_getter_existing_disabled_user_via_email(django_assert_nu
 
 
 @responses.activate
-def test_authentication_session_tokens(django_assert_num_queries, monkeypatch, rf, settings):
+def test_authentication_session_tokens(django_assert_num_queries, monkeypatch, rf, settings, httpx2_mock):
     """Test the session contains oidc_refresh_token and oidc_access_token after authentication."""
     settings.OIDC_OP_TOKEN_ENDPOINT = "http://oidc.endpoint.test/token"
     settings.OIDC_OP_USER_ENDPOINT = "http://oidc.endpoint.test/userinfo"
@@ -333,11 +333,11 @@ def test_authentication_session_tokens(django_assert_num_queries, monkeypatch, r
         status=200,
     )
 
-    responses.add(
-        responses.GET,
-        re.compile(settings.OIDC_OP_USER_ENDPOINT),
+    httpx2_mock.add_response(
+        method="GET",
+        url=settings.OIDC_OP_USER_ENDPOINT,
         json={"sub": "123", "email": "test@example.com"},
-        status=200,
+        status_code=200,
     )
 
     with django_assert_num_queries(3):
@@ -364,7 +364,7 @@ def test_authentication_get_userinfo_default_setting(settings):
 
 
 @responses.activate
-def test_authentication_get_userinfo_auto_response(monkeypatch, settings):
+def test_authentication_get_userinfo_auto_response(monkeypatch, settings, httpx2_mock):
     """Test get_userinfo method with a JSON or JWT response."""
     settings.OIDC_OP_USER_ENDPOINT = "http://oidc.endpoint.test/userinfo"
 
@@ -372,14 +372,15 @@ def test_authentication_get_userinfo_auto_response(monkeypatch, settings):
     oidc_backend = OIDCAuthenticationBackend()
 
     # Authentication should work if the response is JSON
-    responses.get(
-        settings.OIDC_OP_USER_ENDPOINT,
+    httpx2_mock.add_response(
+        method="GET",
+        url=settings.OIDC_OP_USER_ENDPOINT,
         json={
             "first_name": "John",
             "last_name": "Doe",
             "email": "john.doe@example.com",
         },
-        status=200,
+        status_code=200,
     )
     result = oidc_backend.get_userinfo("fake_access_token", None, None)
     assert result["first_name"] == "John"
@@ -387,7 +388,13 @@ def test_authentication_get_userinfo_auto_response(monkeypatch, settings):
     assert result["email"] == "john.doe@example.com"
 
     # Authentication should work if the response is JWT (requires content_type in auto mode)
-    responses.get(settings.OIDC_OP_USER_ENDPOINT, body="fake.jwt.token", status=200, content_type="application/jwt")
+    httpx2_mock.add_response(
+        method="GET",
+        url=settings.OIDC_OP_USER_ENDPOINT,
+        text="fake.jwt.token",
+        status_code=200,
+        headers={"Content-Type": "application/jwt"},
+    )
 
     def mock_verify_token(self, token):  # pylint: disable=unused-argument
         return {
@@ -404,8 +411,12 @@ def test_authentication_get_userinfo_auto_response(monkeypatch, settings):
     assert result["email"] == "jane.doe@example.com"
 
     # Authentication should work if the response is JWT with params in content type
-    responses.get(
-        settings.OIDC_OP_USER_ENDPOINT, body="fake.jwt.token", status=200, content_type="application/JWT; charset=utf-8"
+    httpx2_mock.add_response(
+        method="GET",
+        url=settings.OIDC_OP_USER_ENDPOINT,
+        text="fake.jwt.token",
+        status_code=200,
+        headers={"Content-Type": "application/JWT; charset=utf-8"},
     )
 
     def mock_verify_token(self, token):  # pylint: disable=unused-argument
@@ -424,19 +435,20 @@ def test_authentication_get_userinfo_auto_response(monkeypatch, settings):
 
 
 @responses.activate
-def test_authentication_get_userinfo_json_response(settings):
+def test_authentication_get_userinfo_json_response(settings, httpx2_mock):
     """Test get_userinfo method with a JSON response."""
     settings.OIDC_OP_USER_ENDPOINT = "http://oidc.endpoint.test/userinfo"
 
-    responses.add(
-        responses.GET,
-        settings.OIDC_OP_USER_ENDPOINT,
+    httpx2_mock.add_response(
+        method="GET",
+        url=settings.OIDC_OP_USER_ENDPOINT,
+        is_reusable=True,
         json={
             "first_name": "John",
             "last_name": "Doe",
             "email": "john.doe@example.com",
         },
-        status=200,
+        status_code=200,
     )
 
     # We should raise if we expect JWT but get JSON
@@ -456,11 +468,13 @@ def test_authentication_get_userinfo_json_response(settings):
 
 
 @responses.activate
-def test_authentication_get_userinfo_token_response(monkeypatch, settings):
+def test_authentication_get_userinfo_token_response(monkeypatch, settings, httpx2_mock):
     """Test get_userinfo method with a token response."""
     settings.OIDC_OP_USER_ENDPOINT = "http://oidc.endpoint.test/userinfo"
 
-    responses.add(responses.GET, settings.OIDC_OP_USER_ENDPOINT, body="fake.jwt.token", status=200)
+    httpx2_mock.add_response(
+        method="GET", url=settings.OIDC_OP_USER_ENDPOINT, is_reusable=True, text="fake.jwt.token", status_code=200
+    )
 
     def mock_verify_token(self, token):  # pylint: disable=unused-argument
         return {
@@ -488,7 +502,7 @@ def test_authentication_get_userinfo_token_response(monkeypatch, settings):
 
 
 @responses.activate
-def test_authentication_get_userinfo_invalid_response(settings):
+def test_authentication_get_userinfo_invalid_response(settings, httpx2_mock):
     """
     Test get_userinfo method with an invalid JWT response that
     causes verify_token to raise an error.
@@ -496,7 +510,7 @@ def test_authentication_get_userinfo_invalid_response(settings):
     settings.OIDC_OP_USER_ENDPOINT = "http://oidc.endpoint.test/userinfo"
     settings.OIDC_OP_USER_ENDPOINT_FORMAT = "JWT"
 
-    responses.add(responses.GET, settings.OIDC_OP_USER_ENDPOINT, body="fake.jwt.token", status=200)
+    httpx2_mock.add_response(method="GET", url=settings.OIDC_OP_USER_ENDPOINT, text="fake.jwt.token", status_code=200)
 
     oidc_backend = OIDCAuthenticationBackend()
 

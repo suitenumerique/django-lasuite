@@ -4,9 +4,8 @@ import time
 from unittest.mock import MagicMock
 
 import factories
+import httpx2
 import pytest
-import requests.exceptions
-import responses
 from cryptography.fernet import Fernet
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.middleware import SessionMiddleware
@@ -112,9 +111,8 @@ def test_basic_auth_disabled(oidc_settings):  # pylint: disable=unused-argument
     assert str(excinfo.value) == "OIDC_TOKEN_USE_BASIC_AUTH is not supported"
 
 
-@responses.activate
 @pytest.mark.parametrize("http_method", ["get", "post", "put", "patch", "delete", "head", "options"])
-def test_successful_token_refresh(oidc_settings, http_method):  # pylint: disable=unused-argument
+def test_successful_token_refresh(oidc_settings, http_method, httpx2_mock):  # pylint: disable=unused-argument
     """Test that the middleware successfully refreshes the token for any HTTP method."""
     user = factories.UserFactory()
 
@@ -130,11 +128,11 @@ def test_successful_token_refresh(oidc_settings, http_method):  # pylint: disabl
     request.session["oidc_id_token_expiration"] = time.time() - 100
     request.session.save()
 
-    responses.add(
-        responses.POST,
-        "https://auth.example.com/token",
+    httpx2_mock.add_response(
+        method="POST",
+        url="https://auth.example.com/token",
         json={"access_token": "new_token", "refresh_token": "new_refresh_token"},
-        status=200,
+        status_code=200,
     )
 
     middleware = RefreshOIDCAccessToken(get_response)
@@ -166,9 +164,8 @@ def test_non_expired_token(oidc_settings):  # pylint: disable=unused-argument
     assert response is None
 
 
-@responses.activate
 @pytest.mark.parametrize("http_method", ["get", "post", "put", "patch", "delete", "head", "options"])
-def test_refresh_token_request_timeout(oidc_settings, http_method):  # pylint: disable=unused-argument
+def test_refresh_token_request_timeout(oidc_settings, http_method, httpx2_mock):  # pylint: disable=unused-argument
     """
     Test that the middleware returns a 401 response when the token
     refresh request times out for any HTTP method.
@@ -185,11 +182,7 @@ def test_refresh_token_request_timeout(oidc_settings, http_method):  # pylint: d
     request.session["oidc_id_token_expiration"] = time.time() - 100
     request.session.save()
 
-    responses.add(
-        responses.POST,
-        "https://auth.example.com/token",
-        body=requests.exceptions.Timeout("timeout"),
-    )
+    httpx2_mock.add_exception(httpx2.TimeoutException("timeout"), method="POST", url="https://auth.example.com/token")
 
     middleware = RefreshOIDCAccessToken(get_response)
     response = middleware.process_request(request)
@@ -198,8 +191,7 @@ def test_refresh_token_request_timeout(oidc_settings, http_method):  # pylint: d
     assert not response.has_header("refresh_url")
 
 
-@responses.activate
-def test_refresh_token_request_error_400(oidc_settings):  # pylint: disable=unused-argument
+def test_refresh_token_request_error_400(oidc_settings, httpx2_mock):  # pylint: disable=unused-argument
     """
     Test that the middleware returns a 401 response when the token
     refresh request returns a 400 error.
@@ -216,11 +208,8 @@ def test_refresh_token_request_error_400(oidc_settings):  # pylint: disable=unus
     request.session["oidc_id_token_expiration"] = time.time() - 100
     request.session.save()
 
-    responses.add(
-        responses.POST,
-        "https://auth.example.com/token",
-        json={"error": "invalid_grant"},
-        status=400,
+    httpx2_mock.add_response(
+        method="POST", url="https://auth.example.com/token", json={"error": "invalid_grant"}, status_code=400
     )
 
     middleware = RefreshOIDCAccessToken(get_response)
@@ -231,8 +220,7 @@ def test_refresh_token_request_error_400(oidc_settings):  # pylint: disable=unus
     assert response["refresh_url"].startswith("https://auth.example.com/authorize")
 
 
-@responses.activate
-def test_refresh_token_request_error(oidc_settings):  # pylint: disable=unused-argument
+def test_refresh_token_request_error(oidc_settings, httpx2_mock):  # pylint: disable=unused-argument
     """
     Test that the middleware returns a 401 response when
     the token refresh request returns a 404 error.
@@ -249,11 +237,8 @@ def test_refresh_token_request_error(oidc_settings):  # pylint: disable=unused-a
     request.session["oidc_id_token_expiration"] = time.time() - 100
     request.session.save()
 
-    responses.add(
-        responses.POST,
-        "https://auth.example.com/token",
-        json={"error": "invalid_grant"},
-        status=404,
+    httpx2_mock.add_response(
+        method="POST", url="https://auth.example.com/token", json={"error": "invalid_grant"}, status_code=404
     )
 
     middleware = RefreshOIDCAccessToken(get_response)
@@ -263,8 +248,7 @@ def test_refresh_token_request_error(oidc_settings):  # pylint: disable=unused-a
     assert not response.has_header("refresh_url")
 
 
-@responses.activate
-def test_refresh_token_request_malformed_json_error(oidc_settings):  # pylint: disable=unused-argument
+def test_refresh_token_request_malformed_json_error(oidc_settings, httpx2_mock):  # pylint: disable=unused-argument
     """
     Test that the middleware returns a 401 response
     when the token refresh request returns malformed JSON.
@@ -281,11 +265,8 @@ def test_refresh_token_request_malformed_json_error(oidc_settings):  # pylint: d
     request.session["oidc_id_token_expiration"] = time.time() - 100
     request.session.save()
 
-    responses.add(
-        responses.POST,
-        "https://auth.example.com/token",
-        body="malformed json",
-        status=200,
+    httpx2_mock.add_response(
+        method="POST", url="https://auth.example.com/token", text="malformed json", status_code=200
     )
 
     middleware = RefreshOIDCAccessToken(get_response)
@@ -295,8 +276,7 @@ def test_refresh_token_request_malformed_json_error(oidc_settings):  # pylint: d
     assert not response.has_header("refresh_url")
 
 
-@responses.activate
-def test_refresh_token_request_exception(oidc_settings):  # pylint: disable=unused-argument
+def test_refresh_token_request_exception(oidc_settings, httpx2_mock):  # pylint: disable=unused-argument
     """
     Test that the middleware returns a 401 response
     when the token refresh request raises an exception.
@@ -313,11 +293,8 @@ def test_refresh_token_request_exception(oidc_settings):  # pylint: disable=unus
     request.session["oidc_id_token_expiration"] = time.time() - 100
     request.session.save()
 
-    responses.add(
-        responses.POST,
-        "https://auth.example.com/token",
-        body={"error": "invalid_grant"},  # invalid format dict
-        status=200,
+    httpx2_mock.add_exception(
+        httpx2.ConnectError("Connection error"), method="POST", url="https://auth.example.com/token"
     )
 
     middleware = RefreshOIDCAccessToken(get_response)

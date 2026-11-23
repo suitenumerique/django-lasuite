@@ -1,9 +1,10 @@
 """Resource Server Clients classes."""
 
-import requests
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from joserfc.jwk import KeySet
+
+from lasuite.oidc_http import oidc_request
 
 
 class AuthorizationServerClient:
@@ -62,7 +63,8 @@ class AuthorizationServerClient:
 
     def get_introspection(self, client_id, client_secret, token):
         """Retrieve introspection response about a token."""
-        response = requests.post(
+        response = oidc_request(
+            "POST",
             self._url_introspection,
             data={
                 "client_id": client_id,
@@ -107,7 +109,8 @@ class JWTAuthorizationServerClient(AuthorizationServerClient):
 
     def get_jwks(self):
         """Retrieve Authorization Server JWKS."""
-        response = requests.get(
+        response = oidc_request(
+            "GET",
             self._url_jwks,
             verify=self._verify_ssl,
             timeout=self._timeout,

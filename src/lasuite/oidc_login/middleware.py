@@ -12,7 +12,7 @@ import time
 from http import HTTPStatus
 from urllib.parse import quote, urlencode
 
-import requests
+import httpx2
 from django.contrib.auth import BACKEND_SESSION_KEY
 from django.http import JsonResponse
 from django.urls import reverse
@@ -20,6 +20,7 @@ from django.utils.crypto import get_random_string
 from django.utils.module_loading import import_string
 from mozilla_django_oidc.middleware import SessionRefresh
 
+from lasuite.oidc_http import oidc_request
 from lasuite.oidc_login.backends import OIDCAuthenticationBackend, get_oidc_refresh_token, store_tokens
 
 try:
@@ -185,7 +186,8 @@ class RefreshOIDCAccessToken(SessionRefresh):
             raise RuntimeError("OIDC_TOKEN_USE_BASIC_AUTH is not supported")
 
         try:
-            response = requests.post(
+            response = oidc_request(
+                "POST",
                 token_url,
                 auth=req_auth,
                 data=token_payload,
@@ -194,11 +196,11 @@ class RefreshOIDCAccessToken(SessionRefresh):
             )
             response.raise_for_status()
             token_info = response.json()
-        except requests.exceptions.Timeout:
+        except httpx2.TimeoutException:
             logger.debug("timed out refreshing access token")
             # Don't prompt for reauth as this could be a temporary problem
             return self.finish(request, prompt_reauth=False)
-        except requests.exceptions.HTTPError as exc:
+        except httpx2.HTTPStatusError as exc:
             status_code = exc.response.status_code
             logger.debug("http error %s when refreshing access token", status_code)
             # OAuth error response will be a 400 for various situations, including

@@ -12,6 +12,10 @@ and this project adheres to
 
 - 🔧(project) use uv everywhere
 - ✅(tests) use responses to mock all requests calls
+- ♻️(project) switch HTTP client from requests to httpx2. Errors raised by our
+  HTTP calls are now httpx2 exceptions, and custom CA bundles must be set with
+  `SSL_CERT_FILE` or `SSL_CERT_DIR` instead of `REQUESTS_CA_BUNDLE`.
+  `mozilla-django-oidc` still uses requests for its own calls
 
 ### Remove
 

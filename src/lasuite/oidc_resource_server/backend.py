@@ -4,6 +4,8 @@ import json
 import logging
 from json import JSONDecodeError
 
+import httpx2
+import requests
 from django.conf import settings
 from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
@@ -14,7 +16,6 @@ from joserfc import jwt as jose_jwt
 from joserfc.errors import InvalidClaimError, InvalidTokenError, MissingClaimError
 from joserfc.jwt import Token
 from joserfc.registry import HeaderParameter
-from requests.exceptions import HTTPError
 from rest_framework.exceptions import AuthenticationFailed
 
 from . import utils
@@ -125,7 +126,8 @@ class ResourceServerBackend:
         # call stays out of the transaction below.
         try:
             user_info = backend.get_userinfo(access_token, None, payload)
-        except HTTPError as err:
+        # A custom backend may inherit mozilla-django-oidc's method, which uses requests.
+        except (httpx2.HTTPStatusError, requests.exceptions.HTTPError) as err:
             message = "Could not fetch user info"
             logger.debug("%s. Exception:", message, exc_info=True)
             raise SuspiciousOperation(message) from err
@@ -213,7 +215,7 @@ class ResourceServerBackend:
                 self._client_secret,
                 access_token,
             )
-        except HTTPError as err:
+        except httpx2.HTTPStatusError as err:
             message = "Could not fetch introspection"
             logger.debug("%s. Exception:", message, exc_info=True)
             raise SuspiciousOperation(message) from err
@@ -365,7 +367,7 @@ class JWTResourceServerBackend(ResourceServerBackend):
 
         try:
             public_key_set = self._authorization_server_client.import_public_keys()
-        except (TypeError, ValueError, AttributeError, HTTPError) as err:
+        except (TypeError, ValueError, AttributeError, httpx2.HTTPStatusError) as err:
             message = "Could not get authorization server JWKS"
             logger.debug("%s. Exception:", message, exc_info=True)
             raise SuspiciousOperation(message) from err
