@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- ✨(oidc) add the `migrate_users_to_accounts` command
+
 ### Changed
 
 - 🔧(project) use uv everywhere

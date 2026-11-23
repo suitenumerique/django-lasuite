@@ -61,8 +61,8 @@ urlpatterns = [
 
 Your User model should include the following fields:
 
-1. `sub` - To store the OIDC subject identifier, you may replace this with 
-    another field if needed but needs to set the `OIDC_USER_SUB_FIELD` setting
+1. `sub` - To store the OIDC subject identifier, you may replace this with
+   another field if needed but needs to set the `OIDC_USER_SUB_FIELD` setting
 2. `email` - For user identification (especially if fallback to email is enabled)
 3. `name` - To store user's full name (computed from fields defined in `OIDC_USERINFO_FULLNAME_FIELDS`)
 
@@ -142,3 +142,155 @@ class CustomOIDCAuthenticationBackend(OIDCAuthenticationBackend):
 ```
 
 Then update your `AUTHENTICATION_BACKENDS` setting to use your custom class.
+
+## Migrating the users to accounts
+
+A product moving from ProConnect to _accounts_ knows its users by their ProConnect sub.
+The `migrate_users_to_accounts` command replaces them by _accounts_ subs, without waiting
+for each user to log in. It needs `"lasuite.oidc_login"` in your `INSTALLED_APPS`, and the
+users import endpoint of _accounts_:
+
+```python
+OIDC_OP_USERS_IMPORT_ENDPOINT = "http://accounts:8000/api/v1.0/o/users-import/"
+```
+
+The command authenticates with `OIDC_RP_CLIENT_ID` and `OIDC_RP_CLIENT_SECRET`: the
+application of this client must be allowed to "import users" in the _accounts_ admin.
+
+```bash
+# Migrate the users, 1000 per request by default
+python manage.py migrate_users_to_accounts --batch-size 1000
+```
+
+The options are:
+
+- `--batch-size`: the number of users per request, 1000 by default.
+- `--max-batches`: stop after this number of batches, to run the command from a cron, see
+[Running it from a cron](#running-it-from-a-cron).
+- `--dry-run`: report what would be created and updated, without writing anything on
+either side.
+
+The users are sent by batches with their sub (`OIDC_USER_SUB_FIELD`) and their email,
+the oldest first: by `created_at`, then by primary key. When the user model names this
+field otherwise, e.g. `date_joined`, set `created_at_field` in a subclass of the command
+(see below).
+_accounts_ matches each sub with an _accounts_ user, by sub only, and creates the
+unknown ones. The command then stores the returned _accounts_ sub, one transaction per
+batch. Run it again after an interruption: the users already migrated keep their sub.
+
+To send only the users which are not migrated yet, store the issuer of the sub next to it,
+in the field set by `OIDC_USER_ISSUER_FIELD`. It must be nullable: the existing users have
+no issuer when it is added.
+
+```python
+OIDC_USER_ISSUER_FIELD = "issuer"
+OIDC_OP_URL = "https://accounts.example.com/api/v1.0/o"
+```
+
+The command handles the users as follows:
+
+- The users whose issuer is `OIDC_OP_URL` are already migrated: the command does not
+send them.
+- The others get `OIDC_OP_URL` stored as their issuer, together with their _accounts_
+sub.
+- This includes the users whose sub already was an _accounts_ sub but who had no issuer:
+the command sends them, _accounts_ returns the same sub, and only the issuer is stored.
+Their sub does not change.
+
+The users of before this field, and the ones created by the resource server with
+`OIDC_RS_CREATE_USER`, have no issuer: they are sent. Without this setting, the command
+sends all the users.
+
+Some users are logged as warnings and left unchanged:
+
+- `duplicate of user ...`: their _accounts_ sub already belongs to another user of the
+product, e.g. the same person logged in with both subs. Merging them is up to the product.
+- `email_conflict`: their sub is unknown to _accounts_, but their email belongs to
+another _accounts_ user.
+- `invalid`: their sub or email is not valid.
+
+Each product can handle them its own way, e.g. merging the duplicates or leaving out the
+users to fix by hand, by overriding `handle_duplicate`, `handle_email_conflict` and
+`handle_invalid`: see [Customizing the migration](#customizing-the-migration).
+
+### Running it from a cron
+
+To migrate the users a few at a time, without loading _accounts_, run the command from a
+cron with `--max-batches`. It requires `OIDC_USER_ISSUER_FIELD`: the migrated users get
+the issuer of _accounts_ and are left out, so each run goes on with the next users.
+
+With the Helm charts of La Suite, add a cron job to the values of the backend:
+
+```yaml
+backend:
+  cronjobs:
+    - name: migrate-users-to-accounts
+      schedule: "*/5 * * * *"
+      command:
+        - "/bin/sh"
+        - "-c"
+        - python manage.py migrate_users_to_accounts --batch-size 500 --max-batches 1
+```
+
+Keep `concurrencyPolicy: Forbid`, the default of the charts: a run slower than the
+schedule then delays the next one instead of sending the same users twice. If your
+network policies restrict the egress of the cron jobs, allow the host of
+`OIDC_OP_USERS_IMPORT_ENDPOINT` on port 443.
+
+To run it once by hand, e.g. with `--dry-run`, create a job from the cron job:
+
+```bash
+kubectl create job --from=cronjob/<release>-migrate-users-to-accounts migrate-users-to-accounts-manual
+```
+
+Each run writes its counts on the standard output and logs a warning for each user it
+could not migrate. These users are never left out, so each run sends them first. A run
+fails, with a non-zero exit status, when it migrated nobody while other users are
+waiting: the logged users fill its batches and hold back the others. Handle them in the
+product, e.g. by storing why on the user from the `handle_*` methods and leaving them out
+in `get_users_queryset`, or increase `--batch-size` or `--max-batches`.
+
+Once all the users are migrated, a run finds nobody to send and does not call
+_accounts_. Remove the cron job, or keep it at night without `--max-batches` to migrate
+the users created by the resource server with `OIDC_RS_CREATE_USER`, which have no
+issuer:
+
+```yaml
+      schedule: "0 3 * * *"
+      command:
+        - "/bin/sh"
+        - "-c"
+        - python manage.py migrate_users_to_accounts --batch-size 500
+```
+
+### Customizing the migration
+
+Subclass the command in one of your apps, listed before `"lasuite.oidc_login"` in
+`INSTALLED_APPS` to keep the `migrate_users_to_accounts` name, and override:
+
+1. `get_users_queryset()`: the users to send, by default all the users with a sub. With
+`OIDC_USER_ISSUER_FIELD`, the users whose issuer is `OIDC_OP_URL` are left out.
+2. `update_users(users)`: store the users, their _accounts_ sub already set. By default,
+a `bulk_update` of the sub, and of the issuer with `OIDC_USER_ISSUER_FIELD`.
+3. `handle_duplicate(user, owner)`: called for a user whose _accounts_ sub
+belongs to another user, its owner. Return `True` once the owner no longer holds the
+sub, e.g. merged into the user: the user then gets it. By default, `False`.
+4. `handle_email_conflict(user)` and `handle_invalid(user)`: handle the users _accounts_
+could not match nor create. By default, a warning is logged.
+
+`update_users` and `handle_duplicate` run in the transaction of the batch and are never
+called in a dry run. The `handle_email_conflict` and `handle_invalid` methods are called
+in a dry run too: check `self.dry_run` before writing anything.
+
+```python
+# yourapp/management/commands/migrate_users_to_accounts.py
+from lasuite.oidc_login.management.commands.migrate_users_to_accounts import (
+    Command as BaseCommand,
+)
+
+
+class Command(BaseCommand):
+    def handle_duplicate(self, user, owner):
+        merge_users(source=owner, target=user)  # your own logic, deleting the owner
+        return True
+```
