@@ -11,6 +11,7 @@ and this project adheres to
 ### Changed
 
 - 🔧(project) use uv everywhere
+- ✅(tests) use responses to mock all requests calls
 
 ### Remove
 
