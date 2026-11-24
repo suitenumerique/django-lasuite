@@ -101,6 +101,10 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
             "sub",
         )  # Default to 'sub' if not set in settings
 
+        # The issuer of the sub, to tell the accounts subs from the former ones.
+        # None for the products which do not store it.
+        self.OIDC_USER_ISSUER_FIELD = self.get_settings("OIDC_USER_ISSUER_FIELD", None)
+
         self.OIDC_USER_SUB_FIELD_IMMUTABLE = self.get_settings(
             "OIDC_USER_SUB_FIELD_IMMUTABLE",
             not settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION,
@@ -243,6 +247,9 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         """
         user_info = self.get_userinfo(access_token, id_token, payload)
         claims = self.get_claims_from_userinfo(user_info)
+        issuer = (payload or {}).get("iss")
+        if self.OIDC_USER_ISSUER_FIELD and issuer:
+            claims[self.OIDC_USER_ISSUER_FIELD] = issuer
         return self.get_or_create_user_from_claims(claims)
 
     def get_claims_from_userinfo(self, user_info):
@@ -344,30 +351,47 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         """Update user claims if they have changed."""
         updated_claims = {}
         for key in claims:
-            if not hasattr(user, key):
+            if not self._should_update_claim(user, key, claims):
                 continue
-
-            claim_value = claims.get(key)
-            if claim_value and claim_value != getattr(user, key):
-                if key == self.OIDC_USER_SUB_FIELD and getattr(user, key) and self.OIDC_USER_SUB_FIELD_IMMUTABLE:
-                    logger.warning(
-                        "Attempt to change immutable field '%s' for user %s: %s -> %s",
-                        key,
-                        user.pk,
-                        getattr(user, key),
-                        claim_value,
-                    )
-                    continue
-                if key != self.OIDC_USER_SUB_FIELD:
-                    logger.info(
-                        "Update '%s' field for user %s: %s -> %s",
-                        key,
-                        user.pk,
-                        getattr(user, key),
-                        claim_value,
-                    )
-                setattr(user, key, claim_value)
-                updated_claims[key] = claim_value
+            claim_value = claims[key]
+            if key != self.OIDC_USER_SUB_FIELD:
+                logger.info(
+                    "Update '%s' field for user %s: %s -> %s",
+                    key,
+                    user.pk,
+                    getattr(user, key),
+                    claim_value,
+                )
+            setattr(user, key, claim_value)
+            updated_claims[key] = claim_value
 
         if updated_claims:
             user.save(update_fields=tuple(updated_claims.keys()))
+
+    def _should_update_claim(self, user, key, claims):
+        """Tell whether the user field `key` must take the value of the claim."""
+        if not hasattr(user, key):
+            return False
+        # The issuer is only stored with the sub it issued. A user matched by
+        # email keeps its former sub when the sub is immutable: the issuer of
+        # the new sub would mislabel it, and migrate_users_to_accounts, which
+        # leaves out the users of accounts, would then never send it. A mutable
+        # sub is already set here: it comes before the issuer, the last claim.
+        if key == self.OIDC_USER_ISSUER_FIELD and getattr(user, self.OIDC_USER_SUB_FIELD) != claims.get(
+            self.OIDC_USER_SUB_FIELD
+        ):
+            return False
+
+        claim_value = claims.get(key)
+        if not claim_value or claim_value == getattr(user, key):
+            return False
+        if key == self.OIDC_USER_SUB_FIELD and getattr(user, key) and self.OIDC_USER_SUB_FIELD_IMMUTABLE:
+            logger.warning(
+                "Attempt to change immutable field '%s' for user %s: %s -> %s",
+                key,
+                user.pk,
+                getattr(user, key),
+                claim_value,
+            )
+            return False
+        return True

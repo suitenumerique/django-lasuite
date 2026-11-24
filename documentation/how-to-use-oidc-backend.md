@@ -63,8 +63,12 @@ Your User model should include the following fields:
 
 1. `sub` - To store the OIDC subject identifier, you may replace this with
    another field if needed but needs to set the `OIDC_USER_SUB_FIELD` setting
-2. `email` - For user identification (especially if fallback to email is enabled)
-3. `name` - To store user's full name (computed from fields defined in `OIDC_USERINFO_FULLNAME_FIELDS`)
+2. `issuer` - To store the issuer of the `sub` next to it, as a sub is only unique for
+   its issuer. Set its name in the `OIDC_USER_ISSUER_FIELD` setting. It must be nullable:
+   the existing users have no issuer when it is added. See
+   [Migrating the users to accounts](#migrating-the-users-to-accounts).
+3. `email` - For user identification (especially if fallback to email is enabled)
+4. `name` - To store user's full name (computed from fields defined in `OIDC_USERINFO_FULLNAME_FIELDS`)
 
 ## Authentication Flow
 
@@ -187,7 +191,8 @@ OIDC_USER_ISSUER_FIELD = "issuer"
 OIDC_OP_URL = "https://accounts.example.com/api/v1.0/o"
 ```
 
-The command handles the users as follows:
+The login then stores the issuer of the ID token with the sub. The command handles the
+users as follows:
 
 - The users whose issuer is `OIDC_OP_URL` are already migrated: the command does not
 send them.
@@ -217,7 +222,9 @@ users to fix by hand, by overriding `handle_duplicate`, `handle_email_conflict` 
 
 To migrate the users a few at a time, without loading _accounts_, run the command from a
 cron with `--max-batches`. It requires `OIDC_USER_ISSUER_FIELD`: the migrated users get
-the issuer of _accounts_ and are left out, so each run goes on with the next users.
+the issuer of _accounts_ and are left out, so each run goes on with the next users. The
+users who log in through _accounts_ in the meantime are left out too: their sub and its
+issuer then become the _accounts_ ones.
 
 With the Helm charts of La Suite, add a cron job to the values of the backend:
 
@@ -266,15 +273,20 @@ issuer:
 ### Customizing the migration
 
 Subclass the command in one of your apps, listed before `"lasuite.oidc_login"` in
-`INSTALLED_APPS` to keep the `migrate_users_to_accounts` name, and override:
+`INSTALLED_APPS` to keep the `migrate_users_to_accounts` name, or elsewhere with
+another name, and override:
 
 1. `get_users_queryset()`: the users to send, by default all the users with a sub. With
 `OIDC_USER_ISSUER_FIELD`, the users whose issuer is `OIDC_OP_URL` are left out.
 2. `update_users(users)`: store the users, their _accounts_ sub already set. By default,
 a `bulk_update` of the sub, and of the issuer with `OIDC_USER_ISSUER_FIELD`.
-3. `handle_duplicate(user, owner)`: called for a user whose _accounts_ sub
-belongs to another user, its owner. Return `True` once the owner no longer holds the
-sub, e.g. merged into the user: the user then gets it. By default, `False`.
+3. `handle_duplicate(user, holder)`: called for a user whose _accounts_ sub is already
+held by another user, its holder. Merge them as needed, then return whether the user
+gets the _accounts_ sub:
+   - `True`: the user gets it, e.g. the holder was merged into the user and deleted. The
+     holder must no longer hold it.
+   - `False`: the user is left unchanged, e.g. it was merged into the holder, which keeps
+     the sub. This is the default: the duplicates are left to fix by hand.
 4. `handle_email_conflict(user)` and `handle_invalid(user)`: handle the users _accounts_
 could not match nor create. By default, a warning is logged.
 
@@ -290,7 +302,10 @@ from lasuite.oidc_login.management.commands.migrate_users_to_accounts import (
 
 
 class Command(BaseCommand):
-    def handle_duplicate(self, user, owner):
-        merge_users(source=owner, target=user)  # your own logic, deleting the owner
+    def handle_duplicate(self, user, holder):
+        merge_users(source=holder, target=user)  # your own logic, deleting the holder
         return True
+        # Or the other way around, the holder keeps the sub:
+        # merge_users(source=user, target=holder)
+        # return False
 ```

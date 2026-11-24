@@ -205,6 +205,77 @@ def test_authentication_getter_existing_user_no_fallback_to_email(settings, monk
     assert user.sub == "123"
 
 
+ISSUER = "https://accounts.test/api/v1.0/o"
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_authentication_getter_stores_the_issuer(existing, settings, monkeypatch):
+    """With OIDC_USER_ISSUER_FIELD, the issuer of the ID token is stored with the sub."""
+    settings.OIDC_USER_ISSUER_FIELD = "issuer"
+    if existing:
+        factories.UserFactory(sub="accounts-sub", issuer=None)
+    monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", lambda *args: {"sub": "accounts-sub"})
+
+    user = OIDCAuthenticationBackend().get_or_create_user(
+        access_token="test-token", id_token=None, payload={"iss": ISSUER}
+    )
+
+    user.refresh_from_db()
+    assert (user.sub, user.issuer) == ("accounts-sub", ISSUER)
+
+
+def test_authentication_getter_keeps_the_issuer_of_an_immutable_sub(settings, monkeypatch):
+    """A user matched by email keeps its former sub, so the new issuer does not apply to it."""
+    settings.OIDC_USER_ISSUER_FIELD = "issuer"
+    settings.OIDC_USER_SUB_FIELD_IMMUTABLE = True
+    db_user = factories.UserFactory(sub="proconnect-sub", issuer=None)
+    monkeypatch.setattr(
+        OIDCAuthenticationBackend,
+        "get_userinfo",
+        lambda *args: {"sub": "accounts-sub", "email": db_user.email},
+    )
+
+    user = OIDCAuthenticationBackend().get_or_create_user(
+        access_token="test-token", id_token=None, payload={"iss": ISSUER}
+    )
+
+    user.refresh_from_db()
+    assert user == db_user
+    assert (user.sub, user.issuer) == ("proconnect-sub", None)
+
+
+def test_authentication_getter_stores_the_issuer_of_a_mutable_sub(settings, monkeypatch):
+    """A user matched by email gets the new sub when the sub is mutable, and its issuer."""
+    settings.OIDC_USER_ISSUER_FIELD = "issuer"
+    settings.OIDC_USER_SUB_FIELD_IMMUTABLE = False
+    db_user = factories.UserFactory(sub="proconnect-sub", issuer=None)
+    monkeypatch.setattr(
+        OIDCAuthenticationBackend,
+        "get_userinfo",
+        lambda *args: {"sub": "accounts-sub", "email": db_user.email},
+    )
+
+    user = OIDCAuthenticationBackend().get_or_create_user(
+        access_token="test-token", id_token=None, payload={"iss": ISSUER}
+    )
+
+    user.refresh_from_db()
+    assert user == db_user
+    assert (user.sub, user.issuer) == ("accounts-sub", ISSUER)
+
+
+def test_authentication_getter_without_issuer_field(monkeypatch):
+    """Without OIDC_USER_ISSUER_FIELD, the issuer is not stored."""
+    monkeypatch.setattr(OIDCAuthenticationBackend, "get_userinfo", lambda *args: {"sub": "accounts-sub"})
+
+    user = OIDCAuthenticationBackend().get_or_create_user(
+        access_token="test-token", id_token=None, payload={"iss": ISSUER}
+    )
+
+    user.refresh_from_db()
+    assert user.issuer is None
+
+
 def test_authentication_getter_new_user_with_email(monkeypatch):
     """
     If no user matches the user's info sub, a user should be created.

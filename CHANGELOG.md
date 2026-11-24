@@ -11,6 +11,7 @@ and this project adheres to
 ### Added
 
 - ✨(oidc) add the `migrate_users_to_accounts` command
+- ✨(oidc) store the issuer of the sub at login with `OIDC_USER_ISSUER_FIELD`
 
 ### Changed
 
