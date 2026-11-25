@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-25
+
 ### Added
 
 - ✨(oidc) add the `migrate_users_to_accounts` command
@@ -18,7 +20,7 @@ and this project adheres to
 - 🔧(project) use uv everywhere
 - ✅(tests) use responses to mock all requests calls
 
-### Remove
+### Removed
 
 - ➖(project) drop tox and rely on the CI for versions compatibility checks
 
@@ -32,10 +34,6 @@ and this project adheres to
 ### Changed
 
 - ♻️(oidc) split `get_or_create_user` of the login backend into reusable steps
-
-### Removed
-
-- ➖(project) drop tox and rely on the CI for versions compatibility checks
 
 ## [1.0.0] - 2026-10-30
 
@@ -325,7 +323,8 @@ and this project adheres to
 - ✨(oidc) add the authentication backends #2
 - ✨(oidc) add refresh token tools #3
 
-[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v1.1.0...main
+[unreleased]: https://github.com/suitenumerique/django-lasuite/compare/v1.2.0...main
+[1.2.0]: https://github.com/suitenumerique/django-lasuite/releases/v1.2.0
 [1.1.0]: https://github.com/suitenumerique/django-lasuite/releases/v1.1.0
 [1.0.0]: https://github.com/suitenumerique/django-lasuite/releases/v1.0.0
 [0.1.0]: https://github.com/suitenumerique/django-lasuite/releases/v0.1.0
