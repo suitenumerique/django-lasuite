@@ -1,9 +1,11 @@
 """Brevo marketing automation integration."""
 
+import json
 import logging
+from http import HTTPStatus
 from urllib.parse import quote_plus
 
-import requests
+import httpx2
 
 from lasuite.marketing.backends import ContactData
 from lasuite.marketing.exceptions import ContactCreationError
@@ -11,6 +13,8 @@ from lasuite.marketing.exceptions import ContactCreationError
 from .base import BaseBackend
 
 logger = logging.getLogger(__name__)
+
+HTTP_ERRORS = (httpx2.HTTPError, httpx2.InvalidURL)
 
 
 class BrevoBackend(BaseBackend):
@@ -53,12 +57,16 @@ class BrevoBackend(BaseBackend):
         try:
             email = quote_plus(contact_data.email)
             url = f"https://api.brevo.com/v3/contacts/{email}"
-            response = requests.get(
-                url, params={"identifierType": "email_id"}, headers={"api-key": self._api_key}, timeout=timeout or 10
+            response = httpx2.get(
+                url,
+                params={"identifierType": "email_id"},
+                headers={"api-key": self._api_key},
+                timeout=timeout or 10,
+                follow_redirects=True,
             )
             response.raise_for_status()
             contact = response.json()
-        except requests.RequestException:
+        except (*HTTP_ERRORS, json.JSONDecodeError):
             pass
         else:
             # Add the list_ids from the contact in the contact_data
@@ -81,17 +89,18 @@ class BrevoBackend(BaseBackend):
         }
 
         try:
-            response = requests.post(
+            response = httpx2.post(
                 "https://api.brevo.com/v3/contacts",
                 json=payload,
                 headers={"api-key": self._api_key},
                 timeout=timeout or 10,
+                follow_redirects=True,
             )
             response.raise_for_status()
-        except requests.RequestException as err:
+        except HTTP_ERRORS as err:
             raise ContactCreationError("Failed to create contact in Brevo") from err
 
-        if response.status_code == requests.codes.created:
+        if response.status_code == HTTPStatus.CREATED:
             return response.json()
 
         return {}

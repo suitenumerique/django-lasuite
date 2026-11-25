@@ -4,7 +4,6 @@ import base64
 import json
 
 import pytest
-import responses
 from joserfc import jwe as jose_jwe
 from joserfc import jwt as jose_jwt
 from joserfc.jwk import RSAKey
@@ -44,8 +43,7 @@ def build_authorization_bearer(token):
     return base64.b64encode(token.encode("utf-8")).decode("utf-8")
 
 
-@responses.activate
-def test_resource_server_authentication_class(client, settings):
+def test_resource_server_authentication_class(client, settings, httpx2_mock):
     """
     Defines the settings for the resource server
     for a full authentication with introspection process.
@@ -69,9 +67,10 @@ def test_resource_server_authentication_class(client, settings):
     settings.OIDC_OP_JWKS_ENDPOINT = "https://oidc.example.com/jwks"
     settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
 
-    responses.add(
-        responses.POST,
-        "https://oidc.example.com/introspect",
+    httpx2_mock.add_response(
+        method="POST",
+        url="https://oidc.example.com/introspect",
+        is_reusable=True,
         json={
             "iss": "https://oidc.example.com",
             "aud": "some_client_id",  # settings.OIDC_RS_CLIENT_ID
@@ -125,8 +124,7 @@ def test_resource_server_authentication_class(client, settings):
     assert response_request.resource_server_token_audience == "some_service_provider"
 
 
-@responses.activate
-def test_resource_server_authentication_class_creates_user(client, settings):
+def test_resource_server_authentication_class_creates_user(client, settings, httpx2_mock):
     """
     With OIDC_RS_CREATE_USER enabled, a user unknown to the resource server
     is created from the userinfo endpoint and authenticated.
@@ -142,9 +140,9 @@ def test_resource_server_authentication_class_creates_user(client, settings):
     settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
     settings.OIDC_OP_USER_ENDPOINT = "https://oidc.example.com/userinfo"
 
-    responses.add(
-        responses.POST,
-        "https://oidc.example.com/introspect",
+    httpx2_mock.add_response(
+        method="POST",
+        url="https://oidc.example.com/introspect",
         json={
             "iss": "https://oidc.example.com",
             "aud": "some_client_id",  # settings.OIDC_RS_CLIENT_ID
@@ -154,9 +152,9 @@ def test_resource_server_authentication_class_creates_user(client, settings):
             "active": True,
         },
     )
-    responses.add(
-        responses.GET,
-        "https://oidc.example.com/userinfo",
+    httpx2_mock.add_response(
+        method="GET",
+        url="https://oidc.example.com/userinfo",
         json={"sub": "very-specific-sub", "email": "john@example.com"},
     )
 
@@ -174,9 +172,8 @@ def test_resource_server_authentication_class_creates_user(client, settings):
     assert response_request.resource_server_token_audience == "some_service_provider"
 
 
-@responses.activate
 def test_jwt_resource_server_authentication_class(  # pylint: disable=unused-argument
-    client, jwt_resource_server_backend, settings
+    client, jwt_resource_server_backend, settings, httpx2_mock
 ):
     """
     Defines the settings for the resource server
@@ -215,10 +212,11 @@ def test_jwt_resource_server_authentication_class(  # pylint: disable=unused-arg
         use="sig",
         kid="1234567890",
     )
-    responses.add(
-        responses.GET,
-        settings.OIDC_OP_JWKS_ENDPOINT,
-        body=json.dumps({"keys": [public_jwk]}),
+    httpx2_mock.add_response(
+        method="GET",
+        url=settings.OIDC_OP_JWKS_ENDPOINT,
+        is_reusable=True,
+        text=json.dumps({"keys": [public_jwk]}),
     )
 
     def encrypt_jwt(json_data):
@@ -246,10 +244,11 @@ def test_jwt_resource_server_authentication_class(  # pylint: disable=unused-arg
             ],
         )
 
-    responses.add(
-        responses.POST,
-        "https://oidc.example.com/introspect",
-        body=encrypt_jwt(
+    httpx2_mock.add_response(
+        method="POST",
+        url="https://oidc.example.com/introspect",
+        is_reusable=True,
+        text=encrypt_jwt(
             {
                 "iss": "https://oidc.example.com",
                 "aud": "some_client_id",  # settings.OIDC_RS_CLIENT_ID
@@ -308,8 +307,7 @@ def test_jwt_resource_server_authentication_class(  # pylint: disable=unused-arg
     assert response_request.resource_server_token_audience == "some_service_provider"
 
 
-@responses.activate
-def test_resource_server_authentication_class_inactive_local_user(client, settings):
+def test_resource_server_authentication_class_inactive_local_user(client, settings, httpx2_mock):
     """
     Test authentication with ResourceServerBackend when the local user is inactive.
 
@@ -330,9 +328,9 @@ def test_resource_server_authentication_class_inactive_local_user(client, settin
     settings.OIDC_OP_JWKS_ENDPOINT = "https://oidc.example.com/jwks"
     settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
 
-    responses.add(
-        responses.POST,
-        "https://oidc.example.com/introspect",
+    httpx2_mock.add_response(
+        method="POST",
+        url="https://oidc.example.com/introspect",
         json={
             "iss": "https://oidc.example.com",
             "aud": "some_client_id",  # settings.OIDC_RS_CLIENT_ID
@@ -354,8 +352,7 @@ def test_resource_server_authentication_class_inactive_local_user(client, settin
     assert response.json() == {"detail": "User inactive or deleted."}
 
 
-@responses.activate
-def test_resource_server_authentication_class_inactive_user(client, settings):
+def test_resource_server_authentication_class_inactive_user(client, settings, httpx2_mock):
     """
     Test authentication with ResourceServerBackend when user is inactive (active=False).
 
@@ -375,9 +372,9 @@ def test_resource_server_authentication_class_inactive_user(client, settings):
     settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
 
     # Mock introspection response with active=False
-    responses.add(
-        responses.POST,
-        "https://oidc.example.com/introspect",
+    httpx2_mock.add_response(
+        method="POST",
+        url="https://oidc.example.com/introspect",
         json={
             "active": False,  # User is not active
         },
@@ -393,9 +390,8 @@ def test_resource_server_authentication_class_inactive_user(client, settings):
     assert response.json()["detail"] == "Introspected user is not active"
 
 
-@responses.activate
 def test_jwt_resource_server_authentication_class_inactive_local_user(  # pylint: disable=unused-argument
-    client, jwt_resource_server_backend, settings
+    client, jwt_resource_server_backend, settings, httpx2_mock
 ):
     """
     Test authentication with JWTResourceServerBackend when the local user is inactive.
@@ -431,11 +427,7 @@ def test_jwt_resource_server_authentication_class_inactive_local_user(  # pylint
         use="sig",
         kid="1234567890",
     )
-    responses.add(
-        responses.GET,
-        settings.OIDC_OP_JWKS_ENDPOINT,
-        body=json.dumps({"keys": [public_jwk]}),
-    )
+    httpx2_mock.add_response(method="GET", url=settings.OIDC_OP_JWKS_ENDPOINT, text=json.dumps({"keys": [public_jwk]}))
 
     def encrypt_jwt(json_data):
         """Encrypt the JWT token for the backend to decrypt."""
@@ -462,10 +454,10 @@ def test_jwt_resource_server_authentication_class_inactive_local_user(  # pylint
             ],
         )
 
-    responses.add(
-        responses.POST,
-        "https://oidc.example.com/introspect",
-        body=encrypt_jwt(
+    httpx2_mock.add_response(
+        method="POST",
+        url="https://oidc.example.com/introspect",
+        text=encrypt_jwt(
             {
                 "iss": "https://oidc.example.com",
                 "aud": "some_client_id",
@@ -492,9 +484,8 @@ def test_jwt_resource_server_authentication_class_inactive_local_user(  # pylint
     assert response.json() == {"detail": "User inactive or deleted."}
 
 
-@responses.activate
 def test_jwt_resource_server_authentication_class_inactive_user(  # pylint: disable=unused-argument
-    client, jwt_resource_server_backend, settings
+    client, jwt_resource_server_backend, settings, httpx2_mock
 ):
     """
     Test authentication with JWTResourceServerBackend when user is inactive (active=False).
@@ -528,11 +519,7 @@ def test_jwt_resource_server_authentication_class_inactive_user(  # pylint: disa
         use="sig",
         kid="1234567890",
     )
-    responses.add(
-        responses.GET,
-        settings.OIDC_OP_JWKS_ENDPOINT,
-        body=json.dumps({"keys": [public_jwk]}),
-    )
+    httpx2_mock.add_response(method="GET", url=settings.OIDC_OP_JWKS_ENDPOINT, text=json.dumps({"keys": [public_jwk]}))
 
     def encrypt_jwt(json_data):
         """Encrypt the JWT token for the backend to decrypt."""
@@ -560,10 +547,10 @@ def test_jwt_resource_server_authentication_class_inactive_user(  # pylint: disa
         )
 
     # Mock introspection response with active=False
-    responses.add(
-        responses.POST,
-        "https://oidc.example.com/introspect",
-        body=encrypt_jwt(
+    httpx2_mock.add_response(
+        method="POST",
+        url="https://oidc.example.com/introspect",
+        text=encrypt_jwt(
             {
                 "iss": "https://oidc.example.com",
                 "aud": "some_client_id",

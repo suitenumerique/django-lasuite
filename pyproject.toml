@@ -40,29 +40,28 @@ drf = [
 ]
 oidc-login = [
     "cryptography>=42.0",
+    "httpx2>=2.16.2",
     "joserfc>=1.4.0", # mozilla-django-oidc<5.0.0
     "mozilla-django-oidc>=4.0.1",
     "PyJWT>=2.9.0", # mozilla-django-oidc>=5.0.0
-    "requests>=2.32.3",
 ]
 oidc-resource-server = [
     "djangorestframework>=3.15.2",
+    "httpx2>=2.16.2",
     "joserfc>=1.4.0",
     "mozilla-django-oidc>=4.0.1",
-    "requests>=2.32.3",
 ]
 malware-detection = [
     "celery>=5.0",
     "cryptography>=42.0",
+    "httpx2>=2.16.2",
     # 2.9.0 added PyJWK.algorithm_name, used to verify file-scanner webhooks.
     "PyJWT>=2.9.0",
     "python-icap>=0.1.2",
-    "requests>=2.32.3",
-    "requests-toolbelt>=1.0.0",
 ]
 marketing = [
     "celery>=5.0",
-    "requests>=2.32.3",
+    "httpx2>=2.16.2",
 ]
 configuration = [
     "django-configurations>=2.5.1",
@@ -76,6 +75,7 @@ dev = [
     "django-lasuite[all]",
     "factory_boy",
     "freezegun>=1.5.5",
+    "httpx2-pytest>=2.0.0",
     "pytest",
     "pytest-django",
     "responses",

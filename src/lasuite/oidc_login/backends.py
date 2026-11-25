@@ -5,7 +5,6 @@ from functools import lru_cache
 from json import JSONDecodeError
 
 import jwt
-import requests
 from cryptography.fernet import Fernet
 from django.conf import settings
 from django.core.exceptions import SuspiciousOperation
@@ -16,6 +15,7 @@ from mozilla_django_oidc.auth import (
 )
 from mozilla_django_oidc.utils import import_from_settings
 
+from lasuite.oidc_http import oidc_request
 from lasuite.oidc_login.enums import OIDCUserEndpointFormat
 
 logger = logging.getLogger(__name__)
@@ -178,7 +178,8 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
           dict: User details dictionary obtained from the OpenID Connect user endpoint.
 
         """
-        user_response = requests.get(
+        user_response = oidc_request(
+            "GET",
             self.OIDC_OP_USER_ENDPOINT,
             headers={"Authorization": f"Bearer {access_token}"},
             verify=self.get_settings("OIDC_VERIFY_SSL", True),
