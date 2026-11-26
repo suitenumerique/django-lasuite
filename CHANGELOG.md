@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🐛(oidc-rs) answer 503 when the authorization server cannot answer
+
 ## [1.2.0] - 2026-11-25
 
 ### Added

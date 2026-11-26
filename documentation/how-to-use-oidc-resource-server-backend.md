@@ -98,6 +98,9 @@ class SecureAPIView(APIView):
 5. Backend checks that the user matching the token's `sub` is active
 6. If valid, request is processed; otherwise, authentication fails
 
+If the authorization server does not answer, or answers with a `5xx` status, the API
+answers `503`, so the caller can try again later.
+
 ### Inactive users
 
 The `active` claim of the introspection response is about the token, not about the
