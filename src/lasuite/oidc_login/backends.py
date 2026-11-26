@@ -383,7 +383,7 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
             return False
 
         claim_value = claims.get(key)
-        if not claim_value or claim_value == getattr(user, key):
+        if claim_value is not None or claim_value == getattr(user, key):
             return False
         if key == self.OIDC_USER_SUB_FIELD and getattr(user, key) and self.OIDC_USER_SUB_FIELD_IMMUTABLE:
             logger.warning(
