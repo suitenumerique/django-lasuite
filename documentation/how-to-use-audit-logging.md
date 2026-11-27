@@ -57,6 +57,12 @@ The client IP comes from `REMOTE_ADDR` by default. Set
 `REST_FRAMEWORK["NUM_PROXIES"]` to the number of trusted proxies if they
 manage the `X-Forwarded-For` chain.
 
+Set `AUDIT_LOG_PERSONAL_DATA = True` in Django settings to include available
+email addresses and full names under `user` and `user.target`. These fields
+are omitted by default. Without a Django setting, use the environment variable
+`AUDIT_LOG_PERSONAL_DATA=true` (or `1`). Audit details and registered fields
+still follow the values the application supplies.
+
 ## Register target fields and authentication methods
 
 Create `audit_registry.py` in an installed app. Django LaSuite discovers it
@@ -159,3 +165,6 @@ def audit_document_read(request: Request, document_id: str, user_id: str) -> Non
         target={"id": document_id, "sub_type": "document"},
     )
 ```
+
+When personal-data logging is enabled, actor and account-target mappings can
+supply `email` and `full_name`.

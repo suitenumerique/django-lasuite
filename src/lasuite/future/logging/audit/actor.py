@@ -1,18 +1,18 @@
 """
 Resolve who is acting: actor type, identifiers, auth method and tenant.
 
-Personal data is kept to a minimum on purpose: a person is identified by its
-primary key, its OIDC ``sub`` when it has one and the domain of its email
-address. The address itself is never recorded.
+By default, a person is identified by their primary key, OIDC ``sub`` and
+email domain. Projects can opt in to recording email addresses and names.
 """
 
 from collections.abc import Mapping
 from enum import Enum
+from os import environ
 from typing import Any
 
 from lasuite.tools.email import get_domain_from_email
 
-from ._django import is_user
+from ._django import get_setting, is_user
 from .enums import ActorType
 from .registry import auth_methods, dotted_path
 
@@ -123,9 +123,18 @@ def _default_actor_type(request, user, client_id) -> ActorType:
     return ActorType.ANONYMOUS
 
 
+def _full_name(user) -> str | None:
+    if isinstance(user, Mapping):
+        return user.get("full_name")
+    if full_name := getattr(user, "full_name", None):
+        return full_name
+    get_full_name = getattr(user, "get_full_name", None)
+    return get_full_name() if callable(get_full_name) else None
+
+
 def describe_user(user) -> dict[str, Any]:
     """
-    Return the ECS fields identifying a person: id and email domain.
+    Return the ECS account fields, including email and name when enabled.
 
     The id is missing for accounts that were deleted.
     """
@@ -133,7 +142,11 @@ def describe_user(user) -> dict[str, Any]:
         user_id, email = user.get("id"), user.get("email")
     else:
         user_id, email = user.pk, getattr(user, "email", None)
-    return {"id": str(user_id) if user_id is not None else None, "domain": email_domain(email)}
+    fields = {"id": str(user_id) if user_id is not None else None, "domain": email_domain(email)}
+    enabled_from_env = environ.get("AUDIT_LOG_PERSONAL_DATA", "").strip().lower() in {"1", "true"}
+    if get_setting("AUDIT_LOG_PERSONAL_DATA", enabled_from_env) is True:
+        fields.update(email=email or None, full_name=_full_name(user) or None)
+    return fields
 
 
 def user_sub(user) -> str | None:

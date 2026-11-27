@@ -65,6 +65,32 @@ def test_user_target_subject(audit_events, sub):
         assert event["lasuite"]["user_target"] == {"sub": sub}
 
 
+@pytest.mark.parametrize("personal_data", [None, False, True])
+def test_account_personal_data_requires_opt_in(audit_events, settings, monkeypatch, personal_data):
+    """The setting controls email and full name for the actor and account affected."""
+    monkeypatch.delenv("AUDIT_LOG_PERSONAL_DATA", raising=False)
+    if personal_data is not None:
+        settings.AUDIT_LOG_PERSONAL_DATA = personal_data
+    if personal_data is False:
+        monkeypatch.setenv("AUDIT_LOG_PERSONAL_DATA", "true")
+
+    user_model = get_user_model()
+    monkeypatch.setattr(user_model, "get_full_name", lambda user: user.name, raising=False)
+    actor = user_model(email="actor@example.org")
+    actor.full_name = "Acting Account"
+    target = user_model(email="target@example.org", name="Target Account")
+
+    audit.log("user.update", actor=actor, user_target=target)
+
+    [event] = audit_events
+    user_fields = {"id": str(actor.pk), "domain": "example.org"}
+    target_fields = {"id": str(target.pk), "domain": "example.org"}
+    if personal_data:
+        user_fields.update(email=actor.email, full_name=actor.full_name)
+        target_fields.update(email=target.email, full_name=target.name)
+    assert event["user"] == {**user_fields, "target": target_fields}
+
+
 def test_resource_server_authentication_is_named():
     """LaSuite's DRF resource server authenticator has a built-in label."""
     authenticator = object.__new__(ResourceServerAuthentication)

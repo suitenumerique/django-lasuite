@@ -100,7 +100,8 @@ def build_document(  # noqa: PLR0913  # pylint: disable=too-many-arguments,too-m
     can supply these fields in a project that uses another web framework.
     ``actor``, ``actor_type``, ``auth_method`` and ``client_id`` override them;
     ``actor=None`` records no account even when the request is signed in.
-    An actor mapping can supply an ``id`` with an optional ``email`` and ``sub``.
+    An actor mapping can supply an ``id`` with optional ``email``, ``sub`` and
+    ``full_name``. An explicit ``user_target`` can also be an account mapping.
     ``target`` is the resource acted on, reported as ``entity.target``, and
     ``user_target`` the account the action was about, reported as
     ``user.target`` with its OIDC sub in ``lasuite.user_target.sub``. It defaults

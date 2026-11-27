@@ -22,24 +22,38 @@ def main():
     logger.setLevel(logging.INFO)
     logger.addHandler(handler)
 
-    audit.log(
-        "document.read",
-        request=audit.RequestContext(method="GET", path="/documents/42"),
-        actor={"id": "123", "email": "user@example.org"},
-        auth_method="bearer",
-        target={"id": "42", "sub_type": "document"},
-        user_target={"id": "456", "sub": "target-sub"},
-    )
+    for personal_data in ("false", "true"):
+        os.environ["AUDIT_LOG_PERSONAL_DATA"] = personal_data
+        audit.log(
+            "document.read",
+            request=audit.RequestContext(method="GET", path="/documents/42"),
+            actor={"id": "123", "email": "user@example.org", "full_name": "Acting Account"},
+            auth_method="bearer",
+            target={"id": "42", "sub_type": "document"},
+            user_target={
+                "id": "456",
+                "sub": "target-sub",
+                "email": "target@example.org",
+                "full_name": "Target Account",
+            },
+        )
 
-    event = json.loads(stream.getvalue())
+    event, event_with_personal_data = map(json.loads, stream.getvalue().splitlines())
     assert event["event"]["action"] == "document.read"
     assert event["service"]["name"] == "test-api"
     assert event["http"]["request"]["method"] == "GET"
-    assert event["user"] == {"id": "123", "domain": "example.org", "target": {"id": "456"}}
+    assert event["user"] == {"id": "123", "domain": "example.org", "target": {"id": "456", "domain": "example.org"}}
     assert event["lasuite"]["actor"] == {"type": "user"}
     assert event["lasuite"]["auth"] == {"method": "bearer"}
     assert event["lasuite"]["user_target"] == {"sub": "target-sub"}
     assert event["entity"]["target"]["id"] == "42"
+    assert event_with_personal_data["user"] == {
+        "id": "123",
+        "domain": "example.org",
+        "email": "user@example.org",
+        "full_name": "Acting Account",
+        "target": {"id": "456", "domain": "example.org", "email": "target@example.org", "full_name": "Target Account"},
+    }
 
 
 if __name__ == "__main__":
