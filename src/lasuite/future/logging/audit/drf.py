@@ -81,6 +81,7 @@ class AuditViewMixin:
     about is found from the target unless ``audit_user_target`` is assigned.
     A detail named after an event field, as ``outcome`` or ``request``, is
     dropped: overriding one is done in ``get_audit_fields``.
+    Set ``audit_skip`` on the view instance to suppress the current event.
     """
 
     audit_actions: Mapping[str, Action | str] = {}
@@ -91,6 +92,7 @@ class AuditViewMixin:
     audit_user_target: Any = None
     audit_actor: Any = FROM_REQUEST
     audit_details: Mapping[str, Any] | None = None
+    audit_skip = False
 
     def __init_subclass__(cls, **kwargs):
         """Refuse extra actions in ``audit_actions``, keyed by a method name."""
@@ -149,6 +151,8 @@ class AuditViewMixin:
         Never raises: a response must not fail because it could not be audited.
         """
         try:
+            if self.audit_skip:
+                return
             action = self.get_audit_action()
             if action is not None:
                 fields = self.get_audit_fields(status_code, error)

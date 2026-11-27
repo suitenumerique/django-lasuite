@@ -100,6 +100,10 @@ outcome from it. It captures objects retrieved through object permission
 checks. Set `self.audit_target` in a custom action or after creation when
 the view needs to supply the affected object.
 
+Set `self.audit_skip = True` on the view instance to suppress the event for
+the current request. To skip repeated successful range requests and keep
+refusals in the audit log, set the flag only after access checks succeed.
+
 To audit writes through Django's default admin site, replace
 `"django.contrib.admin"` in `INSTALLED_APPS` with
 `"lasuite.future.logging.audit.apps.AuditedAdminConfig"`. Keep the `admin.site.urls` route.

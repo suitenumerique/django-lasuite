@@ -348,3 +348,13 @@ def test_failing_audit_never_fails_the_response(audit_events):
 
     assert response.status_code == 200
     assert audit_events == []
+
+
+def test_skipped_response_is_not_audited(audit_events):
+    """The skip flag suppresses an event for an otherwise audited action."""
+    view = ListingViewSet.as_view({"get": "list"}, audit_skip=True)
+
+    response = view(APIRequestFactory().get("/things/"))
+
+    assert response.status_code == 200
+    assert audit_events == []
