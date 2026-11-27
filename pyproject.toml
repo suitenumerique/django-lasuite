@@ -35,6 +35,10 @@ dependencies = [
 "Bug Tracker" = "https://github.com/suitenumerique/django-lasuite/issues"
 
 [project.optional-dependencies]
+audit = [
+    "dockerflow>=2026.3.4",
+    "djangorestframework>=3.15.2",
+]
 drf = [
     "djangorestframework>=3.15.2",
 ]
@@ -68,7 +72,7 @@ configuration = [
     "django-configurations>=2.5.1",
 ]
 all = [
-    "django-lasuite[configuration,drf,malware-detection,marketing,oidc-login,oidc-resource-server]",
+    "django-lasuite[audit,configuration,drf,malware-detection,marketing,oidc-login,oidc-resource-server]",
 ]
 
 [dependency-groups]
