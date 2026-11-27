@@ -200,6 +200,22 @@ def test_migrate_users_to_accounts_skips_users_without_sub():
 
 
 @responses.activate
+def test_migrate_users_to_accounts_skips_staff_users():
+    """Staff users are not sent."""
+    regular_user = UserFactory()
+    UserFactory(is_staff=True)
+
+    callback = mock_users_import({})
+    responses.add_callback(responses.POST, ENDPOINT, callback=callback)
+
+    run_command()
+
+    assert callback.payloads[0]["users"] == [
+        {"pk": str(regular_user.pk), "sub": regular_user.sub, "email": regular_user.email},
+    ]
+
+
+@responses.activate
 def test_migrate_users_to_accounts_duplicates(caplog):
     """A user whose accounts sub belongs to another user is logged and left unchanged."""
     holder = UserFactory(sub="accounts-sub")
@@ -228,8 +244,8 @@ def test_migrate_users_to_accounts_duplicates(caplog):
         second.pk: "second-sub",
     }
     assert warnings(caplog) == [
-        f"User {duplicate.pk}: duplicate of user {holder.pk}",
-        f"User {second.pk}: duplicate of user {first.pk}",
+        f"User {duplicate.pk}: duplicate of user pk={holder.pk} sub=accounts-sub",
+        f"User {second.pk}: duplicate of user pk={first.pk} sub=accounts-shared",
     ]
     assert "'duplicate': 2" in stdout
     assert "'updated': 1" in stdout
@@ -260,8 +276,8 @@ def test_migrate_users_to_accounts_duplicates_across_batches(dry_run, caplog):
 
     assert len(responses.calls) == 4
     assert warnings(caplog) == [
-        f"User {duplicate.pk}: duplicate of user {holder.pk}",
-        f"User {second.pk}: duplicate of user {first.pk}",
+        f"User {duplicate.pk}: duplicate of user pk={holder.pk} sub=accounts-sub",
+        f"User {second.pk}: duplicate of user pk={first.pk} sub=accounts-shared",
     ]
     assert "'duplicate': 2" in stdout
     assert f"'{'to_update' if dry_run else 'updated'}': 1" in stdout
@@ -399,7 +415,7 @@ def test_migrate_users_to_accounts_custom_duplicate(dry_run, caplog):
 
     stdout = run_command(*(["--dry-run"] if dry_run else []), command=CustomCommand())
 
-    assert warnings(caplog) == [f"User {duplicate.pk}: duplicate of user {holder.pk}"]
+    assert warnings(caplog) == [f"User {duplicate.pk}: duplicate of user pk={holder.pk} sub=accounts-sub"]
     if dry_run:
         assert handled == []
         assert dict(User.objects.values_list("pk", "sub")) == {
@@ -607,3 +623,95 @@ def test_migrate_users_to_accounts_invalid_batch_size():
     """The batch size must be positive."""
     with pytest.raises(CommandError, match="batch size"):
         run_command("--batch-size", "0")
+
+
+@responses.activate
+def test_migrate_users_to_accounts_logs_output(caplog, issuer_settings):
+    """Test the command output for human."""
+    UserFactory(pk="fe435ef9-6c1b-4bbd-bb8b-1c9d1d3d31ec", sub="confirmed-sub")
+    UserFactory(pk="b16df79e-978c-4eed-8103-808fc50e7a1a", sub="proconnect-old-sub")
+    UserFactory(pk="95b3fcb3-b625-422e-9b15-b7a660834174", sub="proconnect-sub")
+    UserFactory(pk="3775ca78-ddb2-492a-adfc-029086ce6586", sub="accounts-sub")
+    UserFactory(pk="a18e8ad4-5357-45dc-ab9e-423178296cb2", sub="first-sub")
+    UserFactory(pk="3a80fc27-9428-4d9e-8a55-f6c243fdc3e3", sub="second-sub")
+    responses.add_callback(
+        responses.POST,
+        ENDPOINT,
+        callback=mock_users_import(
+            {
+                "confirmed-sub": ("accounts", "confirmed-sub"),
+                "proconnect-old-sub": ("accounts", "accounts-new-sub"),
+                "proconnect-sub": ("identity_provider", "accounts-sub"),
+                "accounts-sub": ("accounts", "accounts-sub"),
+                "first-sub": ("identity_provider", "accounts-shared"),
+                "second-sub": ("identity_provider", "accounts-shared"),
+            }
+        ),
+    )
+
+    run_command("--batch-size", "2")
+
+    assert caplog.messages == [
+        "User fe435ef9-6c1b-4bbd-bb8b-1c9d1d3d31ec: current_sub=confirmed-sub confirmed, only issuer should change",
+        (
+            "User fe435ef9-6c1b-4bbd-bb8b-1c9d1d3d31ec: has_changed=True current_sub=confirmed-sub current_issuer=None "
+            "expected_new_sub=confirmed-sub expected_new_issuer=https://accounts.test/api/v1.0/o"
+        ),
+        (
+            "User b16df79e-978c-4eed-8103-808fc50e7a1a: current_sub=proconnect-old-sub "
+            "will change to expected_new_sub=accounts-new-sub"
+        ),
+        "1 users have theirs sub confirmed, and 1 users subs should changes",
+        "On 1 changing users, 0 have already their sub hold by another user",
+        "User b16df79e-978c-4eed-8103-808fc50e7a1a: has_changed=True "
+        "current_sub=proconnect-old-sub current_issuer=None "
+        "expected_new_sub=accounts-new-sub expected_new_issuer=https://accounts.test/api/v1.0/o",
+        "2/2 users updated",
+        (
+            "User 95b3fcb3-b625-422e-9b15-b7a660834174: current_sub=proconnect-sub "
+            "will change to expected_new_sub=accounts-sub"
+        ),
+        "User 3775ca78-ddb2-492a-adfc-029086ce6586: current_sub=accounts-sub confirmed, only issuer should change",
+        (
+            "User 3775ca78-ddb2-492a-adfc-029086ce6586: has_changed=True current_sub=accounts-sub current_issuer=None "
+            "expected_new_sub=accounts-sub expected_new_issuer=https://accounts.test/api/v1.0/o"
+        ),
+        "1 users have theirs sub confirmed, and 1 users subs should changes",
+        "On 1 changing users, 1 have already their sub hold by another user",
+        (
+            "User 95b3fcb3-b625-422e-9b15-b7a660834174: duplicate "
+            "of user pk=3775ca78-ddb2-492a-adfc-029086ce6586 sub=accounts-sub"
+        ),
+        "1/1 users updated",
+        (
+            "Handling duplicate between user=95b3fcb3-b625-422e-9b15-b7a660834174 "
+            "and holder=3775ca78-ddb2-492a-adfc-029086ce6586"
+        ),
+        (
+            "Duplicate between user=95b3fcb3-b625-422e-9b15-b7a660834174 "
+            "and holder=3775ca78-ddb2-492a-adfc-029086ce6586 resolved with assign_sub_to_user=False"
+        ),
+        "User a18e8ad4-5357-45dc-ab9e-423178296cb2: current_sub=first-sub will "
+        "change to expected_new_sub=accounts-shared",
+        (
+            "User 3a80fc27-9428-4d9e-8a55-f6c243fdc3e3: current_sub=second-sub "
+            "will change to expected_new_sub=accounts-shared"
+        ),
+        "0 users have theirs sub confirmed, and 2 users subs should changes",
+        "On 2 changing users, 0 have already their sub hold by another user",
+        "User a18e8ad4-5357-45dc-ab9e-423178296cb2: has_changed=True current_sub=first-sub current_issuer=None "
+        "expected_new_sub=accounts-shared expected_new_issuer=https://accounts.test/api/v1.0/o",
+        (
+            "User 3a80fc27-9428-4d9e-8a55-f6c243fdc3e3: duplicate "
+            "of user pk=a18e8ad4-5357-45dc-ab9e-423178296cb2 sub=accounts-shared"
+        ),
+        "1/1 users updated",
+        (
+            "Handling duplicate between user=3a80fc27-9428-4d9e-8a55-f6c243fdc3e3 "
+            "and holder=a18e8ad4-5357-45dc-ab9e-423178296cb2"
+        ),
+        (
+            "Duplicate between user=3a80fc27-9428-4d9e-8a55-f6c243fdc3e3 "
+            "and holder=a18e8ad4-5357-45dc-ab9e-423178296cb2 resolved with assign_sub_to_user=False"
+        ),
+    ]

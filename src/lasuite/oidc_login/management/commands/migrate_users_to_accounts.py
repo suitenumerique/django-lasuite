@@ -5,6 +5,7 @@ from collections import Counter
 
 import requests
 from django.contrib.auth import get_user_model
+from django.core.exceptions import FieldDoesNotExist
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import Q
@@ -104,7 +105,7 @@ class Command(BaseCommand):
 
     def get_users_queryset(self):
         """
-        Return the users to send to accounts, by default all the users with a sub.
+        Return the users to send to accounts, by default all non-staff users with a sub.
 
         With `OIDC_USER_ISSUER_FIELD`, the users whose sub was issued by accounts are left
         out: an unknown issuer is kept, as for the users of before this field.
@@ -114,6 +115,14 @@ class Command(BaseCommand):
         )
         if self.issuer_field:
             queryset = queryset.exclude(**{self.issuer_field: self.issuer})
+
+        # Exclude staff members, if the field exists
+        try:
+            self.user_model._meta.get_field("is_staff")  # noqa: SLF001
+        except FieldDoesNotExist:
+            pass
+        else:
+            queryset = queryset.exclude(is_staff=True)
         return queryset
 
     def update_users(self, users):
@@ -123,7 +132,8 @@ class Command(BaseCommand):
         Called in the transaction of the batch, never in a dry run.
         """
         fields = [self.sub_field, self.issuer_field] if self.issuer_field else [self.sub_field]
-        self.user_model.objects.bulk_update(users, fields)
+        updated = self.user_model.objects.bulk_update(users, fields)
+        logger.info("%s/%s users updated", updated, len(users))
 
     def handle_duplicate(self, user, holder):
         """
@@ -227,9 +237,23 @@ class Command(BaseCommand):
 
     def _set_accounts_sub(self, user, accounts_sub):
         """Set the accounts sub of a user, and its issuer when the product stores it."""
+        current_sub = getattr(user, self.sub_field)
+        current_issuer = getattr(user, self.issuer_field) if self.issuer_field else None
+
         setattr(user, self.sub_field, accounts_sub)
         if self.issuer_field:
             setattr(user, self.issuer_field, self.issuer)
+
+        has_changed = current_sub != accounts_sub or current_issuer != self.issuer
+        logger.info(
+            "User %s: has_changed=%s current_sub=%s current_issuer=%s expected_new_sub=%s expected_new_issuer=%s",
+            user.pk,
+            has_changed,
+            current_sub,
+            current_issuer,
+            accounts_sub,
+            self.issuer,
+        )
 
     def _update_subs(self, results):
         """
@@ -242,38 +266,50 @@ class Command(BaseCommand):
         """
         # 1. Sort the users: the ones to store, and the duplicates. Nothing is written yet.
 
-        # The users whose sub changes: accounts returned an accounts sub (None for the email
-        # conflicts and the invalid users) which is not their sub yet.
-        changes = [
-            (result["user"], result["accounts_sub"])
-            for result in results
-            if result["accounts_sub"] and result["accounts_sub"] != getattr(result["user"], self.sub_field)
-        ]
-        # The users whose sub already is the accounts sub, but without the accounts issuer,
-        # e.g. created by the resource server: only their issuer is stored.
-        confirmed = (
-            [
-                result["user"]
-                for result in results
-                if result["accounts_sub"]
-                and result["accounts_sub"] == getattr(result["user"], self.sub_field)
-                and getattr(result["user"], self.issuer_field) != self.issuer
-            ]
-            if self.issuer_field
-            else []
+        confirmed, changes = [], []
+        for result in results:
+            user, accounts_sub = result["user"], result["accounts_sub"]
+            # The users whose sub already is the accounts sub, but without the accounts issuer,
+            # e.g. created by the resource server: only their issuer is stored.
+            if (
+                self.issuer_field
+                and accounts_sub
+                and accounts_sub == getattr(user, self.sub_field)
+                and getattr(user, self.issuer_field) != self.issuer
+            ):
+                confirmed.append(user)
+                logger.info("User %s: current_sub=%s confirmed, only issuer should change", user.pk, accounts_sub)
+                self._set_accounts_sub(user, getattr(user, self.sub_field))
+
+            # The users whose sub changes: accounts returned an accounts sub (None for the email
+            # conflicts and the invalid users) which is not their sub yet.
+            if accounts_sub and accounts_sub != getattr(user, self.sub_field):
+                logger.info(
+                    "User %s: current_sub=%s will change to expected_new_sub=%s",
+                    user.pk,
+                    getattr(user, self.sub_field),
+                    accounts_sub,
+                )
+                changes.append((user, accounts_sub))
+
+        logger.info(
+            "%s users have theirs sub confirmed, and %s users subs should changes", len(confirmed), len(changes)
         )
-        for user in confirmed:
-            self._set_accounts_sub(user, getattr(user, self.sub_field))
         # The holder of each accounts sub to give, by accounts sub: the users which already
         # hold it in the database, and the users of the previous batches it was given to by
         # this run. A dry run writes nothing: those are only known from `given_subs`, which
         # takes precedence as the latest state.
-        holders = {
+        already_hold_subs = {
             getattr(holder, self.sub_field): holder
             for holder in self.user_model.objects.filter(
                 **{f"{self.sub_field}__in": [accounts_sub for _user, accounts_sub in changes]}
             )
-        } | self.given_subs
+        }
+        logger.info(
+            "On %s changing users, %s have already their sub hold by another user", len(changes), len(already_hold_subs)
+        )
+        holders = already_hold_subs | self.given_subs
+
         counts = Counter()
         # The users to store, and the duplicates with the holder of their accounts sub.
         users, duplicates = list(confirmed), []
@@ -281,7 +317,9 @@ class Command(BaseCommand):
             if accounts_sub in holders:
                 # Another user holds this accounts sub: the user keeps its sub for now.
                 counts["duplicate"] += 1
-                logger.warning("User %s: duplicate of user %s", user.pk, holders[accounts_sub].pk)
+                logger.warning(
+                    "User %s: duplicate of user pk=%s sub=%s", user.pk, holders[accounts_sub].pk, accounts_sub
+                )
                 duplicates.append((user, holders[accounts_sub], accounts_sub))
                 continue
             # The user becomes the holder of the accounts sub, so that a next user getting
@@ -302,7 +340,15 @@ class Command(BaseCommand):
             resolved = []
             for user, holder, accounts_sub in duplicates:
                 # True: the holder no longer holds the accounts sub, the user gets it.
-                if self.handle_duplicate(user, holder):
+                logger.info("Handling duplicate between user=%s and holder=%s", user.pk, holder.pk)
+                assign_sub_to_user = self.handle_duplicate(user, holder)
+                logger.info(
+                    "Duplicate between user=%s and holder=%s resolved with assign_sub_to_user=%s",
+                    user.pk,
+                    holder.pk,
+                    assign_sub_to_user,
+                )
+                if assign_sub_to_user:
                     self.given_subs[accounts_sub] = user
                     self._set_accounts_sub(user, accounts_sub)
                     resolved.append(user)
