@@ -93,6 +93,8 @@ jobs:
             apps: admin tools
           - extra: configuration
             apps: configuration
+          - extra: audit
+            apps: audit
           - extra: drf
             apps: drf
           - extra: malware-detection
