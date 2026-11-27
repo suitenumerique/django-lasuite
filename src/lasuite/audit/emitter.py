@@ -7,10 +7,10 @@ import socket
 import uuid
 from collections.abc import Iterable
 from datetime import UTC, datetime
+from os import environ
 from typing import Any
 
-from django.conf import settings
-
+from ._django import get_setting
 from .actions import Action
 from .actor import FROM_REQUEST, describe_actor, describe_user
 from .ecs import (
@@ -18,6 +18,7 @@ from .ecs import (
     ECS_VERSION,
     check_classification,
     is_expected,
+    service_name,
     stream_fields,
 )
 from .enums import ActorType, EventCategory, EventType, Outcome, Reason
@@ -58,7 +59,7 @@ def level_for(outcome: Outcome | str, reason: Reason | str | None) -> int:
 @functools.cache
 def service_version() -> str | None:
     """Return the release of the backend."""
-    return getattr(settings, "RELEASE", None)
+    return get_setting("RELEASE", environ.get("RELEASE"))
 
 
 @functools.cache
@@ -95,9 +96,11 @@ def build_document(  # noqa: PLR0913  # pylint: disable=too-many-arguments,too-m
     apply unless given here, or a bare dotted name (``document.create``).
     ``category`` may be a list, for an event filed under several.
     The actor, auth method and network fields are read from ``request``, by
-    default from the context of the request being served.
+    default from the context of the request being served. A ``RequestContext``
+    can supply these fields in a project that uses another web framework.
     ``actor``, ``actor_type``, ``auth_method`` and ``client_id`` override them;
     ``actor=None`` records no account even when the request is signed in.
+    An actor mapping can supply an ``id`` with an optional ``email`` and ``sub``.
     ``target`` is the resource acted on, reported as ``entity.target``, and
     ``user_target`` the account the action was about, reported as
     ``user.target``: by default the target if it is a user, or the account
@@ -107,7 +110,10 @@ def build_document(  # noqa: PLR0913  # pylint: disable=too-many-arguments,too-m
     mapping. The value of a detail is data and is kept whole: a ``None`` or an
     empty mapping inside it, as in the ``from`` and ``to`` of a change, stays.
     """
-    context = request_context() if request is None else RequestContext.from_request(request)
+    if request is None:
+        context = request_context()
+    else:
+        context = request if isinstance(request, RequestContext) else RequestContext.from_request(request)
     outcome = Outcome(outcome)
     reason = Reason(reason) if reason is not None else None
     if isinstance(action, Action):
@@ -131,8 +137,8 @@ def build_document(  # noqa: PLR0913  # pylint: disable=too-many-arguments,too-m
             "data_stream": stream["data_stream"],
             "message": message,
             "service": {
-                "name": settings.AUDIT_LOG_SERVICE_NAME,
-                "environment": getattr(settings, "ENVIRONMENT", None),
+                "name": service_name(),
+                "environment": get_setting("ENVIRONMENT", environ.get("ENVIRONMENT")),
                 "version": service_version(),
                 "node": {"name": service_node_name()},
                 "origin": {"name": actor_fields["service"]},

@@ -22,9 +22,8 @@ and reason derived from the response status.
 import copy
 import logging
 from collections.abc import Mapping
+from http import HTTPStatus
 from typing import Any
-
-from rest_framework import status
 
 from .actions import Action
 from .actor import FROM_REQUEST
@@ -127,7 +126,7 @@ class AuditViewMixin:
         try:
             return super().handle_exception(exc)
         except Exception as error:
-            self.emit_audit_event(self.request, status.HTTP_500_INTERNAL_SERVER_ERROR, error_type=exception_type(error))
+            self.emit_audit_event(self.request, HTTPStatus.INTERNAL_SERVER_ERROR, error_type=exception_type(error))
             raise
 
     def get_audit_action(self) -> Action | str | None:
@@ -174,7 +173,7 @@ class AuditViewMixin:
         fields = {
             **details,
             "category": (
-                [category, EventCategory.AUTHENTICATION] if status_code == status.HTTP_401_UNAUTHORIZED else category
+                [category, EventCategory.AUTHENTICATION] if status_code == HTTPStatus.UNAUTHORIZED else category
             ),
             "types": types or [ACTION_TYPES.get(getattr(self, "action", None), EventType.INFO)],
             "target": self.audit_target,
@@ -182,12 +181,12 @@ class AuditViewMixin:
             "actor": self.audit_actor,
             "status_code": status_code,
         }
-        if status_code >= status.HTTP_400_BAD_REQUEST:
+        if status_code >= HTTPStatus.BAD_REQUEST:
             fields |= {
                 "outcome": (Outcome.DENIED if status_code in DENIED_STATUSES else Outcome.FAILURE),
                 "reason": STATUS_REASONS.get(
                     status_code,
-                    Reason.INTERNAL_ERROR if status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR else None,
+                    Reason.INTERNAL_ERROR if status_code >= HTTPStatus.INTERNAL_SERVER_ERROR else None,
                 ),
                 "error": error,
             }

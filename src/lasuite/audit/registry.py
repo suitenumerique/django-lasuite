@@ -18,8 +18,10 @@ that is not registered is still identifiable, just less detailed.
 """
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from django.db.models import Model
+if TYPE_CHECKING:
+    from django.db.models import Model
 
 from .ecs import ENTITY_TYPES
 from .enums import EventCategory
@@ -51,12 +53,12 @@ class ModelOptions:
     user_target: str | None = None
 
 
-_models: dict[type[Model], ModelOptions] = {}
+_models: dict[type["Model"], ModelOptions] = {}
 _auth_methods: dict[str, str] = {}
 
 
 def register(  # noqa: PLR0913  # pylint: disable=too-many-arguments
-    model: type[Model],
+    model: type["Model"],
     *,
     fields=(),
     admin_values=(),
@@ -78,12 +80,12 @@ def register(  # noqa: PLR0913  # pylint: disable=too-many-arguments
     )
 
 
-def unregister(model: type[Model]) -> ModelOptions | None:
+def unregister(model: type["Model"]) -> ModelOptions | None:
     """Forget ``model`` and return what was registered for it, if anything."""
     return _models.pop(model, None)
 
 
-def model_options(model: type[Model]) -> ModelOptions:
+def model_options(model: type["Model"]) -> ModelOptions:
     """Return what is registered for a model, or for its concrete model."""
     for klass in (model, model._meta.concrete_model):  # noqa: SLF001
         if (options := _models.get(klass)) is not None:

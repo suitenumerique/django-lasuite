@@ -5,10 +5,14 @@ from contextvars import ContextVar, Token
 from dataclasses import dataclass
 from typing import Any
 
-from django.conf import settings
-from dockerflow.logging import request_id_context
-from rest_framework.settings import api_settings
-from rest_framework.throttling import BaseThrottle
+from ._django import get_setting
+
+try:
+    from dockerflow.logging import request_id_context
+except ModuleNotFoundError as error:
+    if error.name != "dockerflow":
+        raise
+    request_id_context = ContextVar("request_id", default=None)
 
 USER_AGENT_MAX_LENGTH = 1024
 
@@ -22,11 +26,13 @@ def resolve_client_ip(request) -> str | None:
     """
     Return the peer address or the client address from a trusted proxy chain.
 
-    Reuse DRF's throttle identity when the project configures its proxy count.
+    Use the same proxy count as DRF when the project configures one.
     """
     peer = (getattr(request, "META", None) or {}).get("REMOTE_ADDR")
-    if api_settings.NUM_PROXIES:
-        return BaseThrottle().get_ident(request) or peer
+    num_proxies = get_setting("REST_FRAMEWORK", {}).get("NUM_PROXIES")
+    if num_proxies and (forwarded := request.headers.get("X-Forwarded-For")):
+        addresses = forwarded.split(",")
+        return addresses[-min(num_proxies, len(addresses))].strip() or peer
     return peer
 
 
@@ -106,7 +112,7 @@ class AuditLogMiddleware:
 
     def __call__(self, request):
         """Attach an audit context while serving the request."""
-        request_id = current_request_id() if getattr(settings, "REQUEST_ID_TRUST_HEADER", False) else None
+        request_id = current_request_id() if get_setting("REQUEST_ID_TRUST_HEADER", False) else None
         if not request_id:
             request_id = str(uuid.uuid4())
         request_id_context.set(request_id)
@@ -116,7 +122,7 @@ class AuditLogMiddleware:
             response = self.get_response(request)
         finally:
             reset_request_context(token)
-        header = getattr(settings, "DOCKERFLOW_REQUEST_ID_HEADER_NAME", "X-Request-ID")
+        header = get_setting("DOCKERFLOW_REQUEST_ID_HEADER_NAME", "X-Request-ID")
         if not response.has_header(header):
             response[header] = request_id
         return response

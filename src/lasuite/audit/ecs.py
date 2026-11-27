@@ -7,9 +7,9 @@ Reference:
 """
 
 from collections.abc import Iterable
+from os import environ
 
-from django.conf import settings
-
+from ._django import get_setting
 from .enums import EventCategory, EventType
 
 ECS_VERSION = "9.5.0"
@@ -106,10 +106,14 @@ def check_classification(categories: Iterable[EventCategory | str], types: Itera
         )
 
 
+def service_name() -> str:
+    """Return the configured audit service name."""
+    return get_setting("AUDIT_LOG_SERVICE_NAME", environ.get("AUDIT_LOG_SERVICE_NAME", "lasuite"))
+
+
 def dataset() -> str:
     """Return the dataset of audit events, ``<service>.audit``."""
-    service_name = settings.AUDIT_LOG_SERVICE_NAME
-    return f"{service_name}.audit".lower().replace("-", "_")
+    return f"{service_name()}.audit".lower().replace("-", "_")
 
 
 def stream_fields() -> dict[str, dict[str, str]]:
@@ -119,7 +123,9 @@ def stream_fields() -> dict[str, dict[str, str]]:
         "data_stream": {
             "type": "logs",
             "dataset": name,
-            "namespace": getattr(settings, "AUDIT_LOG_DATA_STREAM_NAMESPACE", "default"),
+            "namespace": get_setting(
+                "AUDIT_LOG_DATA_STREAM_NAMESPACE", environ.get("AUDIT_LOG_DATA_STREAM_NAMESPACE", "default")
+            ),
         },
         "event": {"dataset": name},
     }

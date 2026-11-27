@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from enum import Enum
 from typing import Any
 
-from django.db.models import Model, QuerySet
+from ._django import is_model, is_queryset
 
 
 def render_value(value: Any) -> Any:
@@ -13,13 +13,13 @@ def render_value(value: Any) -> Any:
 
     Model instances are reduced to their primary key, enums to their value.
     """
-    if isinstance(value, Model):
+    if is_model(value):
         return str(value.pk)
     if isinstance(value, Enum):
         return value.value
     if isinstance(value, Mapping):
         return {str(key): render_value(item) for key, item in value.items()}
-    if isinstance(value, (QuerySet, list, tuple, set, frozenset)):
+    if isinstance(value, (list, tuple, set, frozenset)) or is_queryset(value):
         return [render_value(item) for item in value]
     if value is None or isinstance(value, (bool, int, float, str)):
         return value

@@ -1,12 +1,5 @@
 """Audit Django's authentication signals: login, failed login, logout."""
 
-from django.contrib.auth import BACKEND_SESSION_KEY
-from django.contrib.auth.signals import (
-    user_logged_in,
-    user_logged_out,
-    user_login_failed,
-)
-
 from .actions import Action
 from .actor import AUTH_METHOD_UNKNOWN, auth_method_for_backend
 from .emitter import log
@@ -18,6 +11,8 @@ LOGOUT_ACTION = Action("user.logout", category=EventCategory.AUTHENTICATION, typ
 
 def get_login_backend(request, user) -> str | None:
     """Return the dotted path of the backend a login went through."""
+    from django.contrib.auth import BACKEND_SESSION_KEY  # noqa: PLC0415
+
     session = getattr(request, "session", None)
     from_session = session.get(BACKEND_SESSION_KEY) if session is not None else None
     return from_session or getattr(user, "backend", None)
@@ -70,6 +65,8 @@ def on_user_logged_out(sender, request, user, **kwargs):  # pylint: disable=unus
 
 def connect_auth_signals() -> None:
     """Connect the receivers to authentication signal."""
+    from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed  # noqa: PLC0415
+
     user_logged_in.connect(on_user_logged_in, dispatch_uid="audit.user_logged_in")
     user_login_failed.connect(on_user_login_failed, dispatch_uid="audit.user_login_failed")
     user_logged_out.connect(on_user_logged_out, dispatch_uid="audit.user_logged_out")

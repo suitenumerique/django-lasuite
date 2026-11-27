@@ -126,3 +126,30 @@ Trigger an audited action and look for its name in `event.action` in the JSON
 log. For HTTP requests, compare `http.request.id` with the response header.
 In tests, use `lasuite.audit.testing.capture_audit()` to collect event
 documents inside a `with` block.
+
+## Use with FastAPI or another Python application
+
+Install `django-lasuite` for standalone logging. The base package installs
+Django, and the standalone logger runs without Django settings. Set
+`AUDIT_LOG_SERVICE_NAME` in the environment and apply the logging dictionary
+above with `logging.config.dictConfig(LOGGING)`. Use `RequestContext` to pass
+HTTP metadata from your framework. For example, in a FastAPI handler:
+
+```python
+from fastapi import Request
+
+from lasuite import audit
+
+
+def audit_document_read(request: Request, document_id: str, user_id: str) -> None:
+    audit.log(
+        "document.read",
+        request=audit.RequestContext(
+            method=request.method,
+            path=request.url.path,
+            client_ip=request.client.host if request.client else None,
+        ),
+        actor={"id": user_id},
+        target={"id": document_id, "sub_type": "document"},
+    )
+```

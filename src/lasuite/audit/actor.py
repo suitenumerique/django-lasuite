@@ -10,10 +10,9 @@ from collections.abc import Mapping
 from enum import Enum
 from typing import Any
 
-from django.contrib.auth import get_user_model
-
 from lasuite.tools.email import get_domain_from_email
 
+from ._django import is_user
 from .enums import ActorType
 from .registry import auth_methods, dotted_path
 
@@ -99,9 +98,12 @@ def _is_account(user) -> bool:
     """
     Tell whether ``user`` is a user account.
 
-    It stays one once deleted, when Django clears its primary key.
+    A standalone caller can supply a mapping with an ID. A Django account is
+    still an account after deletion clears its primary key.
     """
-    return isinstance(user, get_user_model())
+    if isinstance(user, Mapping):
+        return user.get("id") is not None
+    return is_user(user)
 
 
 def _is_service(user) -> bool:
@@ -127,14 +129,17 @@ def describe_user(user) -> dict[str, Any]:
 
     The id is missing for accounts that were deleted.
     """
-    return {
-        "id": str(user.pk) if user.pk is not None else None,
-        "domain": email_domain(getattr(user, "email", None)),
-    }
+    if isinstance(user, Mapping):
+        user_id, email = user.get("id"), user.get("email")
+    else:
+        user_id, email = user.pk, getattr(user, "email", None)
+    return {"id": str(user_id) if user_id is not None else None, "domain": email_domain(email)}
 
 
 def user_sub(user) -> str | None:
     """Return the OIDC sub of an account, missing for one that never signed in."""
+    if isinstance(user, Mapping):
+        return user.get("sub") or None
     return getattr(user, "sub", None) or None
 
 
@@ -167,19 +172,19 @@ def describe_actor(
     user = getattr(request, "user", None) if actor is FROM_REQUEST else actor
     client_id = client_id or client_id_from_auth(getattr(request, "auth", None))
     actor_type = actor_type or _default_actor_type(request, user, client_id)
-    is_account = _is_account(user)
+    account = describe_user(user) if _is_account(user) else None
 
     lasuite: dict[str, Any] = {
         "actor": {
             "type": str(ActorType(actor_type)),
-            "sub": user_sub(user) if is_account else None,
+            "sub": user_sub(user) if account else None,
         },
         "auth": {"method": auth_method or request_auth_method(request)},
         "application": {"client_id": client_id},
     }
-    tenant = client_id or (email_domain(getattr(user, "email", None)) if is_account else None)
+    tenant = client_id or (account["domain"] if account else None)
     return {
-        "user": ({**describe_user(user), "roles": user_roles(user)} if is_account else None),
+        "user": {**account, "roles": user_roles(user)} if account else None,
         "organization": {"id": tenant},
         "service": user.get_username() if _is_service(user) else None,
         "lasuite": lasuite,

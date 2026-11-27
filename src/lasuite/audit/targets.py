@@ -11,9 +11,7 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
-from django.contrib.auth import get_user_model
-from django.db.models import Model
-
+from ._django import is_model, is_user
 from .actor import user_sub
 from .registry import model_options
 from .utils import prune_empty, render_value
@@ -21,10 +19,6 @@ from .utils import prune_empty, render_value
 NAME_FIELD = "name"
 
 _logger = logging.getLogger(__name__)
-
-
-def _is_user(obj: Any) -> bool:
-    return isinstance(obj, get_user_model())
 
 
 def describe_target(obj: Any) -> dict[str, Any]:
@@ -40,19 +34,19 @@ def describe_target(obj: Any) -> dict[str, Any]:
     """
     if isinstance(obj, Mapping):
         return dict(obj)
-    if not isinstance(obj, Model):
+    if not is_model(obj):
         return {"id": str(obj), "sub_type": obj.__class__.__name__.lower()}
 
     meta = obj._meta  # noqa: SLF001
     options = model_options(meta.model)
-    entity_type = options.entity_type or ("user" if _is_user(obj) else None)
+    entity_type = options.entity_type or ("user" if is_user(obj) else None)
     raw: dict[str, Any] = {}
     for name in options.fields:
         try:
             raw[name] = render_value(getattr(obj, name))
         except Exception:  # pylint: disable=broad-exception-caught
             _logger.exception("Audit field %r of %s could not be read", name, meta.label)
-    if _is_user(obj):
+    if is_user(obj):
         raw["sub"] = user_sub(obj)
     return prune_empty(
         {
@@ -72,9 +66,9 @@ def user_target_of(obj: Any) -> Any:
     It is ``obj`` itself for a user, else the attribute registered as the
     ``user_target`` of its model, as the user an access is granted to.
     """
-    if _is_user(obj):
+    if is_user(obj):
         return obj
-    if not isinstance(obj, Model):
+    if not is_model(obj):
         return None
     meta = obj._meta  # noqa: SLF001
     attribute = model_options(meta.model).user_target
@@ -85,4 +79,4 @@ def user_target_of(obj: Any) -> Any:
     except Exception:  # pylint: disable=broad-exception-caught
         _logger.exception("Audit user target %r of %s could not be read", attribute, meta.label)
         return None
-    return user if _is_user(user) else None
+    return user if is_user(user) else None
