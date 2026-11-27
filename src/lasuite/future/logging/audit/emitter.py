@@ -12,7 +12,7 @@ from typing import Any
 
 from ._django import get_setting
 from .actions import Action
-from .actor import FROM_REQUEST, describe_actor, describe_user
+from .actor import FROM_REQUEST, describe_actor, describe_user, user_sub
 from .ecs import (
     DEFAULT_CATEGORY,
     ECS_VERSION,
@@ -103,9 +103,10 @@ def build_document(  # noqa: PLR0913  # pylint: disable=too-many-arguments,too-m
     An actor mapping can supply an ``id`` with an optional ``email`` and ``sub``.
     ``target`` is the resource acted on, reported as ``entity.target``, and
     ``user_target`` the account the action was about, reported as
-    ``user.target``: by default the target if it is a user, or the account
-    registered for its model. ``target_service`` names the peer service the
-    backend called, reported as ``service.target.name``. Any other keyword
+    ``user.target`` with its OIDC sub in ``lasuite.user_target.sub``. It defaults
+    to the target if it is a user or the account registered for its model.
+    ``target_service`` names the peer service the backend called, reported as
+    ``service.target.name``. Any other keyword
     argument lands under ``lasuite.details``, unless ``None`` or an empty
     mapping. The value of a detail is data and is kept whole: a ``None`` or an
     empty mapping inside it, as in the ``from`` and ``to`` of a change, stays.
@@ -161,6 +162,7 @@ def build_document(  # noqa: PLR0913  # pylint: disable=too-many-arguments,too-m
             "entity": {"target": describe_target(target) if target is not None else None},
             "lasuite": {
                 **actor_fields["lasuite"],
+                "user_target": {"sub": user_sub(user_target)},
                 "outcome": str(outcome),
             },
             "error": {

@@ -138,6 +138,8 @@ def describe_user(user) -> dict[str, Any]:
 
 def user_sub(user) -> str | None:
     """Return the OIDC sub of an account, missing for one that never signed in."""
+    if not _is_account(user):
+        return None
     if isinstance(user, Mapping):
         return user.get("sub") or None
     return getattr(user, "sub", None) or None

@@ -76,6 +76,8 @@ A model target is identified by its model name and primary key. Use
 `fields` to add safe attributes to the target, and `admin_values` to
 record changes to specific field values in the admin. For an access grant or
 similar model, `user_target="user"` also identifies the account affected.
+The account appears under `user.target`. When it has an OIDC subject, the
+event records it in `lasuite.user_target.sub`.
 
 ## Audit operations
 

@@ -28,15 +28,17 @@ def main():
         actor={"id": "123", "email": "user@example.org"},
         auth_method="bearer",
         target={"id": "42", "sub_type": "document"},
+        user_target={"id": "456", "sub": "target-sub"},
     )
 
     event = json.loads(stream.getvalue())
     assert event["event"]["action"] == "document.read"
     assert event["service"]["name"] == "test-api"
     assert event["http"]["request"]["method"] == "GET"
-    assert event["user"] == {"id": "123", "domain": "example.org"}
+    assert event["user"] == {"id": "123", "domain": "example.org", "target": {"id": "456"}}
     assert event["lasuite"]["actor"] == {"type": "user"}
     assert event["lasuite"]["auth"] == {"method": "bearer"}
+    assert event["lasuite"]["user_target"] == {"sub": "target-sub"}
     assert event["entity"]["target"]["id"] == "42"
 
 

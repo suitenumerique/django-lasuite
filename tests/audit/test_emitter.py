@@ -5,6 +5,7 @@ import logging
 from io import StringIO
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 
 from lasuite.future.logging import audit
@@ -47,6 +48,21 @@ def test_override_registration_restores_invalid_override(audit_events):
 
     [event] = audit_events
     assert event["entity"]["target"]["name"] == "Editors"
+
+
+@pytest.mark.parametrize("sub", ["target-sub", None])
+def test_user_target_subject(audit_events, sub):
+    """Include the resolved target account's subject when available."""
+    target = get_user_model()(sub=sub, email="target@example.org")
+    audit.log("user.update", target=target, actor={"id": "actor", "sub": "actor-sub"})
+
+    [event] = audit_events
+    assert event["user"]["target"]["id"] == str(target.pk)
+    assert event["lasuite"]["actor"]["sub"] == "actor-sub"
+    if sub is None:
+        assert "user_target" not in event["lasuite"]
+    else:
+        assert event["lasuite"]["user_target"] == {"sub": sub}
 
 
 def test_resource_server_authentication_is_named():
