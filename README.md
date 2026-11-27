@@ -21,6 +21,12 @@ dependencies as an extra, so you only install what you use:
 Extras can be combined (`pip install "django-lasuite[oidc-login,marketing]"`),
 and `django-lasuite[all]` installs every application's dependencies.
 
+## Versioning
+
+`django-lasuite` aims to follow Semantic Versioning (SemVer). Everything under
+`lasuite.future` is considered unstable and may introduce breaking changes even
+in a patch release of `django-lasuite`.
+
 ## Quick Start
 
 To be documented with the first implementations.
