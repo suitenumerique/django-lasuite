@@ -16,4 +16,5 @@ class LaSuiteAdminConfig(AppConfig):
         """Override the Django admin site class."""
         super().ready()
 
-        admin.site.__class__ = LaSuiteAdminSite
+        if not isinstance(admin.site, LaSuiteAdminSite):
+            admin.site.__class__ = LaSuiteAdminSite
