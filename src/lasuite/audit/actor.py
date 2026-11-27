@@ -37,6 +37,8 @@ DEFAULT_AUTH_METHODS = {
     "rest_framework.authentication.BasicAuthentication": "basic",
     "rest_framework.authentication.TokenAuthentication": "token",
     "django.contrib.auth.backends.ModelBackend": "password",
+    "lasuite.oidc_login.backends.OIDCAuthenticationBackend": "oidc",
+    "lasuite.oidc_resource_server.authentication.ResourceServerAuthentication": "resource_server",
 }
 
 
@@ -76,11 +78,7 @@ def request_auth_method(request) -> str:
 
 
 def email_domain(email) -> str | None:
-    """Return the lower-cased domain part of an email address, if any.
-
-    It is parsed as for ``Application.can_delegate_email``, so an audited
-    domain is the one a delegation was checked against.
-    """
+    """Return the lower-cased domain part of an email address, if any."""
     domain = get_domain_from_email(str(email)) if email else None
     return domain.lower() if domain else None
 
