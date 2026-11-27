@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- 🩹(oidc) ignore staff users in `migrate_users_to_accounts`
+
 ## [1.2.0] - 2026-11-25
 
 ### Added

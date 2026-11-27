@@ -5,6 +5,7 @@ from collections import Counter
 
 import requests
 from django.contrib.auth import get_user_model
+from django.core.exceptions import FieldDoesNotExist
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import Q
@@ -104,7 +105,7 @@ class Command(BaseCommand):
 
     def get_users_queryset(self):
         """
-        Return the users to send to accounts, by default all the users with a sub.
+        Return the users to send to accounts, by default all non-staff users with a sub.
 
         With `OIDC_USER_ISSUER_FIELD`, the users whose sub was issued by accounts are left
         out: an unknown issuer is kept, as for the users of before this field.
@@ -114,6 +115,14 @@ class Command(BaseCommand):
         )
         if self.issuer_field:
             queryset = queryset.exclude(**{self.issuer_field: self.issuer})
+
+        # Exclude staff members, if the field exists
+        try:
+            self.user_model._meta.get_field("is_staff")  # noqa: SLF001
+        except FieldDoesNotExist:
+            pass
+        else:
+            queryset = queryset.exclude(is_staff=True)
         return queryset
 
     def update_users(self, users):

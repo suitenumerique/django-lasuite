@@ -200,6 +200,22 @@ def test_migrate_users_to_accounts_skips_users_without_sub():
 
 
 @responses.activate
+def test_migrate_users_to_accounts_skips_staff_users():
+    """Staff users are not sent."""
+    regular_user = UserFactory()
+    UserFactory(is_staff=True)
+
+    callback = mock_users_import({})
+    responses.add_callback(responses.POST, ENDPOINT, callback=callback)
+
+    run_command()
+
+    assert callback.payloads[0]["users"] == [
+        {"pk": str(regular_user.pk), "sub": regular_user.sub, "email": regular_user.email},
+    ]
+
+
+@responses.activate
 def test_migrate_users_to_accounts_duplicates(caplog):
     """A user whose accounts sub belongs to another user is logged and left unchanged."""
     holder = UserFactory(sub="accounts-sub")

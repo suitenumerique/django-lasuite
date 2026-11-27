@@ -18,6 +18,7 @@ class User(AbstractBaseUser):
     issuer = models.URLField("issuer", max_length=255, blank=True, null=True)  # noqa: DJ001
     name = models.CharField("name", max_length=255, blank=True, null=True)  # noqa: DJ001
     email = models.EmailField("email address", blank=True, null=True)  # noqa: DJ001
+    is_staff = models.BooleanField("staff status", default=False)
     is_active = models.BooleanField("active", default=True)
     created_at = models.DateTimeField("created at", auto_now_add=True)
     USERNAME_FIELD = "email"
