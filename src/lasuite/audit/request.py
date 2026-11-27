@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from django.conf import settings
-
 from dockerflow.logging import request_id_context
+from rest_framework.settings import api_settings
 from rest_framework.throttling import BaseThrottle
 
 USER_AGENT_MAX_LENGTH = 1024
@@ -19,16 +19,21 @@ def current_request_id() -> str | None:
 
 
 def resolve_client_ip(request) -> str | None:
-    """Return the address of the real client, never the one of a proxy.
-
-    It reuses DRF's throttles to identify the client.
     """
-    return BaseThrottle().get_ident(request) or request.META.get("REMOTE_ADDR")
+    Return the peer address or the client address from a trusted proxy chain.
+
+    Reuse DRF's throttle identity when the project configures its proxy count.
+    """
+    peer = (getattr(request, "META", None) or {}).get("REMOTE_ADDR")
+    if api_settings.NUM_PROXIES:
+        return BaseThrottle().get_ident(request) or peer
+    return peer
 
 
 @dataclass(frozen=True)
 class RequestContext:
-    """What an audit event reads from the request behind it.
+    """
+    What an audit event reads from the request behind it.
 
     The network fields are read once, when the request comes in. The request
     itself is kept for the actor, only known once it is authenticated: it is
@@ -58,9 +63,7 @@ class RequestContext:
         )
 
 
-_request_context: ContextVar[RequestContext | None] = ContextVar(
-    "audit_request_context", default=None
-)
+_request_context: ContextVar[RequestContext | None] = ContextVar("audit_request_context", default=None)
 
 
 def request_context() -> RequestContext:
@@ -89,9 +92,8 @@ class AuditLogMiddleware:
     It must come right after ``DockerflowMiddleware``, which sets the id from
     the inbound ``DOCKERFLOW_REQUEST_ID_HEADER_NAME`` header. Unless
     ``REQUEST_ID_TRUST_HEADER`` says the ingress overwrites that header, the id
-    is replaced by a fresh one before anything logs, so that a client, the web
-    server access log and the audit events of a request can be joined on an id
-    the client did not choose.
+    is replaced before downstream middleware and views run. Audit events and
+    Dockerflow's request summary then share the generated id.
 
     The context of the request is kept while it is served, so that an audit
     event emitted far from the view, as from a service, still reads its actor
@@ -99,18 +101,22 @@ class AuditLogMiddleware:
     """
 
     def __init__(self, get_response):
+        """Store the next middleware or view."""
         self.get_response = get_response
 
     def __call__(self, request):
-        if not settings.REQUEST_ID_TRUST_HEADER:
-            request_id_context.set(str(uuid.uuid4()))
+        """Attach an audit context while serving the request."""
+        request_id = current_request_id() if getattr(settings, "REQUEST_ID_TRUST_HEADER", False) else None
+        if not request_id:
+            request_id = str(uuid.uuid4())
+        request_id_context.set(request_id)
 
         token = set_request_context(RequestContext.from_request(request))
         try:
             response = self.get_response(request)
         finally:
             reset_request_context(token)
-        header = settings.DOCKERFLOW_REQUEST_ID_HEADER_NAME
+        header = getattr(settings, "DOCKERFLOW_REQUEST_ID_HEADER_NAME", "X-Request-ID")
         if not response.has_header(header):
-            response[header] = current_request_id()
+            response[header] = request_id
         return response
