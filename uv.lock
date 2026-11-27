@@ -505,15 +505,15 @@ all = [
     { name = "requests" },
     { name = "requests-toolbelt" },
 ]
-audit = [
-    { name = "djangorestframework" },
-    { name = "dockerflow" },
-]
 configuration = [
     { name = "django-configurations" },
 ]
 drf = [
     { name = "djangorestframework" },
+]
+future-audit = [
+    { name = "djangorestframework" },
+    { name = "dockerflow" },
 ]
 malware-detection = [
     { name = "celery" },
@@ -560,11 +560,11 @@ requires-dist = [
     { name = "cryptography", marker = "extra == 'oidc-login'", specifier = ">=42.0" },
     { name = "django", specifier = ">=5.2" },
     { name = "django-configurations", marker = "extra == 'configuration'", specifier = ">=2.5.1" },
-    { name = "django-lasuite", extras = ["audit", "configuration", "drf", "malware-detection", "marketing", "oidc-login", "oidc-resource-server"], marker = "extra == 'all'" },
-    { name = "djangorestframework", marker = "extra == 'audit'", specifier = ">=3.15.2" },
+    { name = "django-lasuite", extras = ["configuration", "drf", "future-audit", "malware-detection", "marketing", "oidc-login", "oidc-resource-server"], marker = "extra == 'all'" },
     { name = "djangorestframework", marker = "extra == 'drf'", specifier = ">=3.15.2" },
+    { name = "djangorestframework", marker = "extra == 'future-audit'", specifier = ">=3.15.2" },
     { name = "djangorestframework", marker = "extra == 'oidc-resource-server'", specifier = ">=3.15.2" },
-    { name = "dockerflow", marker = "extra == 'audit'", specifier = ">=2026.3.4" },
+    { name = "dockerflow", marker = "extra == 'future-audit'", specifier = ">=2026.3.4" },
     { name = "joserfc", marker = "extra == 'oidc-login'", specifier = ">=1.4.0" },
     { name = "joserfc", marker = "extra == 'oidc-resource-server'", specifier = ">=1.4.0" },
     { name = "mozilla-django-oidc", marker = "extra == 'oidc-login'", specifier = ">=4.0.1" },
@@ -578,7 +578,7 @@ requires-dist = [
     { name = "requests", marker = "extra == 'oidc-resource-server'", specifier = ">=2.32.3" },
     { name = "requests-toolbelt", marker = "extra == 'malware-detection'", specifier = ">=1.0.0" },
 ]
-provides-extras = ["audit", "drf", "oidc-login", "oidc-resource-server", "malware-detection", "marketing", "configuration", "all"]
+provides-extras = ["drf", "oidc-login", "oidc-resource-server", "malware-detection", "marketing", "configuration", "future-audit", "all"]
 
 [package.metadata.requires-dev]
 dev = [

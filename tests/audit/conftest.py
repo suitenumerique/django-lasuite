@@ -2,7 +2,7 @@
 
 import pytest
 
-from lasuite.audit.testing import capture_audit
+from lasuite.future.logging.audit.testing import capture_audit
 
 
 @pytest.fixture

@@ -17,8 +17,8 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 INSTALLED_APPS = [
     "lasuite.admin",
-    "lasuite.audit",
-    "lasuite.audit.apps.AuditedAdminConfig",
+    "lasuite.future.logging.audit",
+    "lasuite.future.logging.audit.apps.AuditedAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",

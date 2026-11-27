@@ -1,4 +1,4 @@
-"""Smoke test for an installation with only the audit extra."""
+"""Smoke test for standalone audit logging with site packages disabled."""
 
 import json
 import logging
@@ -6,7 +6,7 @@ import os
 from importlib.util import find_spec
 from io import StringIO
 
-from lasuite import audit
+from lasuite.future.logging import audit
 
 
 def main():

@@ -2,6 +2,6 @@
 
 from django.contrib.auth.models import Group
 
-from lasuite import audit
+from lasuite.future.logging import audit
 
 audit.register(Group, fields=("name",), admin_values=("name",))

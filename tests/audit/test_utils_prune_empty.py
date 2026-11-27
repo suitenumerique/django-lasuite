@@ -1,6 +1,6 @@
 """Tests for pruning empty audit fields."""
 
-from lasuite.audit.utils import prune_empty
+from lasuite.future.logging.audit.utils import prune_empty
 
 
 def test_prune_empty_drops_none_and_empty_mappings():

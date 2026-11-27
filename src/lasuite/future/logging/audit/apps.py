@@ -10,7 +10,7 @@ from .signals import connect_auth_signals
 class AuditConfig(AppConfig):
     """Audit Django's authentication signals and load the project's declarations."""
 
-    name = "lasuite.audit"
+    name = "lasuite.future.logging.audit"
     label = "audit"
 
     def ready(self):
@@ -28,4 +28,4 @@ class AuditedAdminConfig(admin_apps.AdminConfig):
     """Serve the admin from the site that audits every write."""
 
     default = False
-    default_site = "lasuite.audit.admin.AuditedAdminSite"
+    default_site = "lasuite.future.logging.audit.admin.AuditedAdminSite"

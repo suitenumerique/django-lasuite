@@ -16,8 +16,8 @@ from rest_framework import (
 from rest_framework.response import Response
 from rest_framework.test import APIRequestFactory
 
-from lasuite import audit
-from lasuite.audit.testing import find_events
+from lasuite.future.logging import audit
+from lasuite.future.logging.audit.testing import find_events
 from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db

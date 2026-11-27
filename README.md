@@ -16,6 +16,7 @@ dependencies as an extra, so you only install what you use:
 | `lasuite.marketing`              | `pip install django-lasuite[marketing]`                       |
 | `lasuite.oidc_login`             | `pip install django-lasuite[oidc-login]`                      |
 | `lasuite.oidc_resource_server`   | `pip install django-lasuite[oidc-resource-server,oidc-login]` |
+| [`lasuite.future.logging.audit`](documentation/how-to-use-audit-logging.md) | `pip install django-lasuite[future-audit]` |
 
 Extras can be combined (`pip install "django-lasuite[oidc-login,marketing]"`),
 and `django-lasuite[all]` installs every application's dependencies.

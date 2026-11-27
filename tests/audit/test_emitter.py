@@ -7,9 +7,9 @@ from io import StringIO
 import pytest
 from django.contrib.auth.models import Group
 
-from lasuite import audit
-from lasuite.audit.actor import auth_method_for
-from lasuite.audit.testing import override_registration
+from lasuite.future.logging import audit
+from lasuite.future.logging.audit.actor import auth_method_for
+from lasuite.future.logging.audit.testing import override_registration
 from lasuite.oidc_resource_server.authentication import ResourceServerAuthentication
 
 

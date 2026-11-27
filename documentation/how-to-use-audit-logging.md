@@ -1,6 +1,6 @@
 # Audit logging
 
-`lasuite.audit` emits one Elastic Common Schema (ECS) JSON record per event
+`lasuite.future.logging.audit` emits one Elastic Common Schema (ECS) JSON record per event
 through Python's `audit` logger. The audit app connects Django's successful
 login, failed login, and logout signals. You can also audit selected DRF
 actions, Django admin writes, and operations in service code.
@@ -10,11 +10,11 @@ actions, Django admin writes, and operations in service code.
 Install a version of Django LaSuite that includes the audit app.
 
 ```sh
-pip install 'django-lasuite[audit]'
+pip install 'django-lasuite[future-audit]'
 ```
 
-Add `"lasuite.audit"` to `INSTALLED_APPS` alongside Django's auth app.
-Add `"lasuite.audit.request.AuditLogMiddleware"` immediately after
+Add `"lasuite.future.logging.audit"` to `INSTALLED_APPS` alongside Django's auth app.
+Add `"lasuite.future.logging.audit.request.AuditLogMiddleware"` immediately after
 `"dockerflow.django.middleware.DockerflowMiddleware"` in `MIDDLEWARE`.
 If Dockerflow is already configured, use the existing entry. The audit app
 requires no database migrations of its own.
@@ -29,7 +29,7 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "audit_json": {"()": "lasuite.audit.formatter.AuditJsonFormatter"},
+        "audit_json": {"()": "lasuite.future.logging.audit.formatter.AuditJsonFormatter"},
     },
     "handlers": {
         "audit_console": {
@@ -63,7 +63,7 @@ Create `audit_registry.py` in an installed app. Django LaSuite discovers it
 at startup. For example, in Dictaphone's `core/audit_registry.py`:
 
 ```python
-from lasuite import audit
+from lasuite.future.logging import audit
 
 from .authentication.backends import OIDCAuthenticationBackend
 from .models import File
@@ -83,7 +83,7 @@ Put `AuditViewMixin` before the DRF base class on your existing viewset.
 For example, a file viewset can declare:
 
 ```python
-from lasuite import audit
+from lasuite.future.logging import audit
 from rest_framework import viewsets
 
 
@@ -100,14 +100,14 @@ the view needs to supply the affected object.
 
 To audit writes through Django's default admin site, replace
 `"django.contrib.admin"` in `INSTALLED_APPS` with
-`"lasuite.audit.apps.AuditedAdminConfig"`. Keep the `admin.site.urls` route.
+`"lasuite.future.logging.audit.apps.AuditedAdminConfig"`. Keep the `admin.site.urls` route.
 If you use `lasuite.admin` for header colors, keep it in `INSTALLED_APPS`.
 
 Use `audit.log()` directly from a service, plain Django view, or worker.
 For example, after a worker completes a transcription:
 
 ```python
-from lasuite import audit
+from lasuite.future.logging import audit
 
 audit.log("file.transcription.complete", target=file)
 ```
@@ -124,7 +124,7 @@ credentials, signed URLs, and file or transcript contents out of these fields.
 
 Trigger an audited action and look for its name in `event.action` in the JSON
 log. For HTTP requests, compare `http.request.id` with the response header.
-In tests, use `lasuite.audit.testing.capture_audit()` to collect event
+In tests, use `lasuite.future.logging.audit.testing.capture_audit()` to collect event
 documents inside a `with` block.
 
 ## Use with FastAPI or another Python application
@@ -138,7 +138,7 @@ HTTP metadata from your framework. For example, in a FastAPI handler:
 ```python
 from fastapi import Request
 
-from lasuite import audit
+from lasuite.future.logging import audit
 
 
 def audit_document_read(request: Request, document_id: str, user_id: str) -> None:

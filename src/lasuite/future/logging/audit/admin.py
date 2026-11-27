@@ -15,7 +15,7 @@ Only writes are audited. Browsing a change list or a change form emits
 nothing.
 
 Which field values may be recorded, and the event category, are registered
-per model in ``lasuite.audit.registry``.
+per model in ``lasuite.future.logging.audit.registry``.
 """
 
 import copy

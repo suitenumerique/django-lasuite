@@ -2,7 +2,7 @@
 Describe the resource an audit event is about, as an ECS ``entity.target``.
 
 The fields describing each model are those registered for it, see
-``lasuite.audit.registry``. A target is always identified by its model name and
+``lasuite.future.logging.audit.registry``. A target is always identified by its model name and
 primary key, so a model that is not registered is still identifiable, just
 less detailed.
 """

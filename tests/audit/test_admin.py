@@ -6,7 +6,7 @@ from django.contrib.admin.models import LogEntry
 from django.contrib.auth.models import Group
 from django.test import RequestFactory
 
-from lasuite.audit.admin import AuditedAdminSite
+from lasuite.future.logging.audit.admin import AuditedAdminSite
 from tests.factories import UserFactory
 
 

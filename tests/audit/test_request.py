@@ -8,8 +8,8 @@ from django.test import RequestFactory
 from dockerflow.django.middleware import DockerflowMiddleware
 from dockerflow.logging import request_id_context
 
-from lasuite import audit
-from lasuite.audit.request import AuditLogMiddleware, request_context, resolve_client_ip
+from lasuite.future.logging import audit
+from lasuite.future.logging.audit.request import AuditLogMiddleware, request_context, resolve_client_ip
 
 
 @pytest.mark.parametrize("trust_header", [False, True])
