@@ -17,7 +17,8 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 INSTALLED_APPS = [
     "lasuite.admin",
-    "django.contrib.admin",
+    "lasuite.audit",
+    "lasuite.audit.apps.AuditedAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -144,3 +145,6 @@ OIDC_RS_SCOPES = ["groups"]
 # Django Admin
 ADMIN_HEADER_BACKGROUND = "#0f5132"
 ADMIN_HEADER_COLOR = "#ffffff"
+
+# Audit logging
+AUDIT_LOG_SERVICE_NAME = "test-project"
