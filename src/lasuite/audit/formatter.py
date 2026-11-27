@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .ecs import ECS_VERSION, stream_fields
@@ -12,13 +12,12 @@ class AuditJsonFormatter(logging.Formatter):
     """Serialise the document attached to the record under ``audit`` in ECS format."""
 
     def format(self, record: logging.LogRecord) -> str:
+        """Render the record as one JSON object."""
         document = getattr(record, "audit", None)
         if not isinstance(document, dict):
             stream = stream_fields()
             document = {
-                "@timestamp": datetime.fromtimestamp(
-                    record.created, tz=timezone.utc
-                ).isoformat(timespec="milliseconds"),
+                "@timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(timespec="milliseconds"),
                 "ecs": {"version": ECS_VERSION},
                 "data_stream": stream["data_stream"],
                 "message": record.getMessage(),
@@ -34,6 +33,4 @@ class AuditJsonFormatter(logging.Formatter):
             error["stack_trace"] = self.formatException(record.exc_info)
             document["error"] = error
 
-        return json.dumps(
-            document, ensure_ascii=False, default=str, separators=(",", ":")
-        )
+        return json.dumps(document, ensure_ascii=False, default=str, separators=(",", ":"))

@@ -6,7 +6,7 @@ import logging
 import socket
 import uuid
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from django.conf import settings
@@ -88,10 +88,11 @@ def build_document(  # noqa: PLR0913  # pylint: disable=too-many-arguments,too-m
     message: str | None = None,
     **details: Any,
 ) -> dict[str, Any]:
-    """Return the ECS document of an event, pruned of empty fields.
+    """
+    Return the ECS document of an event, pruned of empty fields.
 
     ``action`` is what was attempted: an ``Action``, whose category and types
-    apply unless given here, or a bare dotted name (``room.create``).
+    apply unless given here, or a bare dotted name (``document.create``).
     ``category`` may be a list, for an event filed under several.
     The actor, auth method and network fields are read from ``request``, by
     default from the context of the request being served.
@@ -106,9 +107,7 @@ def build_document(  # noqa: PLR0913  # pylint: disable=too-many-arguments,too-m
     mapping. The value of a detail is data and is kept whole: a ``None`` or an
     empty mapping inside it, as in the ``from`` and ``to`` of a change, stays.
     """
-    context = (
-        request_context() if request is None else RequestContext.from_request(request)
-    )
+    context = request_context() if request is None else RequestContext.from_request(request)
     outcome = Outcome(outcome)
     reason = Reason(reason) if reason is not None else None
     if isinstance(action, Action):
@@ -127,7 +126,7 @@ def build_document(  # noqa: PLR0913  # pylint: disable=too-many-arguments,too-m
 
     document = prune_empty(
         {
-            "@timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+            "@timestamp": datetime.now(UTC).isoformat(timespec="milliseconds"),
             "ecs": {"version": ECS_VERSION},
             "data_stream": stream["data_stream"],
             "message": message,
@@ -139,8 +138,7 @@ def build_document(  # noqa: PLR0913  # pylint: disable=too-many-arguments,too-m
                 "origin": {"name": actor_fields["service"]},
                 "target": {"name": target_service},
             },
-            "event": _event_fields(action, outcome, reason, category, types)
-            | stream["event"],
+            "event": _event_fields(action, outcome, reason, category, types) | stream["event"],
             "client": {"ip": context.client_ip},
             "source": {"ip": context.client_ip},
             "http": {
@@ -154,9 +152,7 @@ def build_document(  # noqa: PLR0913  # pylint: disable=too-many-arguments,too-m
                 "target": describe_user(user_target) if user_target else None,
             },
             "organization": actor_fields["organization"],
-            "entity": {
-                "target": describe_target(target) if target is not None else None
-            },
+            "entity": {"target": describe_target(target) if target is not None else None},
             "lasuite": {
                 **actor_fields["lasuite"],
                 "outcome": str(outcome),
@@ -186,9 +182,7 @@ def _categories(category) -> list[EventCategory]:
         return [DEFAULT_CATEGORY]
     if isinstance(category, str):
         return [EventCategory(category)]
-    return list(dict.fromkeys(EventCategory(item) for item in category)) or [
-        DEFAULT_CATEGORY
-    ]
+    return list(dict.fromkeys(EventCategory(item) for item in category)) or [DEFAULT_CATEGORY]
 
 
 def _event_fields(action, outcome, reason, category, types) -> dict[str, Any]:
@@ -197,11 +191,7 @@ def _event_fields(action, outcome, reason, category, types) -> dict[str, Any]:
     type_list = [EventType(item) for item in (types or [])]
     if not type_list:
         type_list = [_default_type(outcome, categories)]
-    if (
-        outcome == Outcome.DENIED
-        and EventType.DENIED not in type_list
-        and is_expected(categories, EventType.DENIED)
-    ):
+    if outcome == Outcome.DENIED and EventType.DENIED not in type_list and is_expected(categories, EventType.DENIED):
         type_list.append(EventType.DENIED)
     try:
         check_classification(categories, type_list)
@@ -220,7 +210,8 @@ def _event_fields(action, outcome, reason, category, types) -> dict[str, Any]:
 
 
 def _default_type(outcome: Outcome, categories: list[EventCategory]) -> EventType:
-    """Return the type of an event whose action names none.
+    """
+    Return the type of an event whose action names none.
 
     ``denied`` or ``error`` when one of the categories expects it, else ``info``.
     """

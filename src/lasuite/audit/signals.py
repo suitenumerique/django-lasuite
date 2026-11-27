@@ -12,12 +12,8 @@ from .actor import AUTH_METHOD_UNKNOWN, auth_method_for_backend
 from .emitter import log
 from .enums import ActorType, EventCategory, EventType, Outcome, Reason
 
-LOGIN_ACTION = Action(
-    "user.login", category=EventCategory.AUTHENTICATION, types=(EventType.START,)
-)
-LOGOUT_ACTION = Action(
-    "user.logout", category=EventCategory.AUTHENTICATION, types=(EventType.END,)
-)
+LOGIN_ACTION = Action("user.login", category=EventCategory.AUTHENTICATION, types=(EventType.START,))
+LOGOUT_ACTION = Action("user.logout", category=EventCategory.AUTHENTICATION, types=(EventType.END,))
 
 
 def get_login_backend(request, user) -> str | None:
@@ -75,7 +71,5 @@ def on_user_logged_out(sender, request, user, **kwargs):  # pylint: disable=unus
 def connect_auth_signals() -> None:
     """Connect the receivers to authentication signal."""
     user_logged_in.connect(on_user_logged_in, dispatch_uid="audit.user_logged_in")
-    user_login_failed.connect(
-        on_user_login_failed, dispatch_uid="audit.user_login_failed"
-    )
+    user_login_failed.connect(on_user_login_failed, dispatch_uid="audit.user_login_failed")
     user_logged_out.connect(on_user_logged_out, dispatch_uid="audit.user_logged_out")

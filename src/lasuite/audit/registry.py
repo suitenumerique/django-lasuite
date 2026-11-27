@@ -1,17 +1,17 @@
-"""Declare what audit events may say about models and authentication classes.
+"""
+Declare what audit events may say about models and authentication classes.
 
 The project registers them from an ``audit_registry`` module in one of its apps,
 imported once the audit app is ready::
 
     audit.register(
-        Room,
-        fields=("slug", "access_level"),  # describe the target
-        admin_values=("name", "access_level"),  # values diffed in the admin
+        Document,
+        fields=("status",),  # describe the target
+        admin_values=("status",),  # values diffed in the admin
         category=audit.EventCategory.CONFIGURATION,  # ECS category of admin writes
     )
-    audit.register(Application, entity_type="application")  # ECS ``entity.type``
-    audit.register(ResourceAccess, user_target="user")  # the account it is about
-    audit.register_auth_method(ApplicationJWTAuthentication, "application_jwt")
+    audit.register(DocumentAccess, user_target="user")  # the account it is about
+    audit.register_auth_method(ProjectTokenAuthentication, "project_token")
 
 A target is always identified by its model name and primary key, so a model
 that is not registered is still identifiable, just less detailed.
@@ -25,13 +25,14 @@ from .ecs import ENTITY_TYPES
 from .enums import EventCategory
 
 
-class AlreadyRegistered(Exception):
+class AlreadyRegistered(Exception):  # noqa: N818 - follows Django admin's exception name
     """A model or an authentication class that was registered twice."""
 
 
 @dataclass(frozen=True)
 class ModelOptions:
-    """What audit events may say about a model.
+    """
+    What audit events may say about a model.
 
     ``fields`` describe the model when it is the target of an event, under
     ``entity.target``. ``admin_values`` are the fields whose before and after
@@ -67,10 +68,7 @@ def register(  # noqa: PLR0913  # pylint: disable=too-many-arguments
     if model in _models:
         raise AlreadyRegistered(f"{model._meta.label} is already registered")  # noqa: SLF001
     if entity_type is not None and entity_type not in ENTITY_TYPES:
-        raise ValueError(
-            f"{entity_type!r} is not an ECS entity type: "
-            f"use one of {', '.join(sorted(ENTITY_TYPES))}"
-        )
+        raise ValueError(f"{entity_type!r} is not an ECS entity type: use one of {', '.join(sorted(ENTITY_TYPES))}")
     _models[model] = ModelOptions(
         fields=tuple(fields),
         admin_values=tuple(admin_values),
@@ -99,7 +97,8 @@ def dotted_path(klass: type) -> str:
 
 
 def register_auth_method(klass: type, name: str) -> None:
-    """Name the ``lasuite.auth.method`` of a DRF authentication class or a login backend.
+    """
+    Name the ``lasuite.auth.method`` of a DRF authentication class or a login backend.
 
     A DRF class is also the default of its subclasses. A login backend must be
     registered itself: custom backends often subclass ``ModelBackend`` only for

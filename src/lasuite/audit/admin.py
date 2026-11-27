@@ -1,4 +1,5 @@
-"""Audit the writes performed through the Django admin.
+"""
+Audit the writes performed through the Django admin.
 
 Every ``ModelAdmin`` registered on :class:`AuditedAdminSite` emits an audit
 event when an object is created, changed or deleted, and when a bulk action
@@ -6,7 +7,7 @@ runs. Django's own ``LogEntry`` keeps being written exactly as before: this
 stream is additive.
 
 Actions are named ``admin.<target>.<verb>`` where ``<target>`` is the model
-name, for instance ``admin.room.update`` or ``admin.user.delete``.
+name, for instance ``admin.group.update`` or ``admin.user.delete``.
 Unlike the rest of the catalogue this family is templated rather than
 enumerated: it follows whatever models are registered.
 
@@ -14,7 +15,7 @@ Only writes are audited. Browsing a change list or a change form emits
 nothing.
 
 Which field values may be recorded, and the event category, are registered
-per model; see ``core.audit.registry``.
+per model in ``lasuite.audit.registry``.
 """
 
 import copy
@@ -25,9 +26,10 @@ from functools import wraps
 from typing import Any
 
 from django.contrib.admin import ModelAdmin
-from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
+
+from lasuite.admin.sites import LaSuiteAdminSite
 
 from .actions import Action
 from .emitter import log
@@ -35,17 +37,13 @@ from .enums import EventCategory, EventType, Outcome, Reason
 from .registry import model_options
 from .utils import render_value
 
-ADMIN_ACCESS_ACTION = Action(
-    "admin.access", category=EventCategory.WEB, types=(EventType.ACCESS,)
-)
+ADMIN_ACCESS_ACTION = Action("admin.access", category=EventCategory.WEB, types=(EventType.ACCESS,))
 DIFF_ATTRIBUTE = "audit_admin_diff"
 PENDING_DELETIONS_ATTRIBUTE = "audit_admin_pending_deletions"
 DELETED_COPIES_ATTRIBUTE = "audit_admin_deleted_copies"
 UNAUDITED_ACTIONS = frozenset({"delete_selected"})
 
-SENSITIVE_FIELD_NAMES = frozenset(
-    {"api_key", "client_secret", "pin_code", "secret", "sub", "token"}
-)
+SENSITIVE_FIELD_NAMES = frozenset({"api_key", "client_secret", "pin_code", "secret", "sub", "token"})
 SENSITIVE_FIELD_MARKERS = ("password", "secret", "token")
 
 _logger = logging.getLogger(__name__)
@@ -70,13 +68,12 @@ _VERB_TYPES: dict[AdminVerb, list[EventType]] = {
 
 def is_sensitive(field_name: str) -> bool:
     """Tell whether the value of a field must never be recorded."""
-    return field_name in SENSITIVE_FIELD_NAMES or any(
-        marker in field_name for marker in SENSITIVE_FIELD_MARKERS
-    )
+    return field_name in SENSITIVE_FIELD_NAMES or any(marker in field_name for marker in SENSITIVE_FIELD_MARKERS)
 
 
 def value_fields_for(model: type) -> frozenset[str]:
-    """Return the fields of ``model`` whose before and after values may be recorded.
+    """
+    Return the fields of ``model`` whose before and after values may be recorded.
 
     Anything that looks like a secret is dropped from the ``admin_values`` of
     the model here, so a mistake in the registration cannot leak one.
@@ -86,7 +83,8 @@ def value_fields_for(model: type) -> frozenset[str]:
 
 
 def category_for(model: type) -> EventCategory:
-    """Return the registered category, else IAM for Django's auth models.
+    """
+    Return the registered category, else IAM for Django's auth models.
 
     Anything granting access to the product is IAM, the rest configuration.
     """
@@ -98,7 +96,8 @@ def category_for(model: type) -> EventCategory:
 
 
 def types_for(model: type, verb: AdminVerb) -> list[EventType]:
-    """Return the event types of ``verb`` on ``model``.
+    """
+    Return the event types of ``verb`` on ``model``.
 
     ECS expects ``user`` or ``group`` before the verb when one was the target.
     """
@@ -115,7 +114,8 @@ def action_name(model: type, verb: AdminVerb) -> str:
 
 
 def form_diff(form, value_fields: frozenset[str]) -> dict[str, Any]:
-    """Return the names of the fields a form changed, and the allowed values.
+    """
+    Return the names of the fields a form changed, and the allowed values.
 
     Field names are always reported. Values are reported for allow-listed
     fields only, as ``{"from": ..., "to": ...}``.
@@ -133,7 +133,8 @@ def form_diff(form, value_fields: frozenset[str]) -> dict[str, Any]:
 
 
 def related_diffs(formsets) -> list[tuple[Any, AdminVerb, dict[str, Any] | None]]:
-    """Return one ``(object, verb, diff)`` triple per inline object touched.
+    """
+    Return one ``(object, verb, diff)`` triple per inline object touched.
 
     Called after ``save_related``, so the formsets already carry what they
     saved. The objects they list are the very instances their forms bound, so
@@ -200,7 +201,8 @@ class AuditedModelAdminMixin:
         return entry
 
     def log_deletions(self, request, queryset):
-        """Note the objects about to be deleted.
+        """
+        Note the objects about to be deleted.
 
         Django calls this before ``delete_model`` and ``delete_queryset``, in
         both the single and the bulk path. Those emit the events, once the
@@ -209,9 +211,7 @@ class AuditedModelAdminMixin:
         """
         targets = list(queryset)
         entries = super().log_deletions(request, targets)
-        setattr(
-            request, PENDING_DELETIONS_ATTRIBUTE, [copy.copy(obj) for obj in targets]
-        )
+        setattr(request, PENDING_DELETIONS_ATTRIBUTE, [copy.copy(obj) for obj in targets])
         return entries
 
     def delete_model(self, request, obj):
@@ -226,7 +226,8 @@ class AuditedModelAdminMixin:
 
     @contextmanager
     def auditing_deletions(self, request, default_targets):
-        """Record the deletions noted by ``log_deletions`` with their outcome.
+        """
+        Record the deletions noted by ``log_deletions`` with their outcome.
 
         ``default_targets`` lists the objects when ``log_deletions`` did not
         run, as when a custom action deletes through these methods directly.
@@ -318,8 +319,9 @@ def audited(admin_class: type) -> type:
     )
 
 
-class AuditedAdminSite(AdminSite):
-    """Admin site whose model admins all emit audit events.
+class AuditedAdminSite(LaSuiteAdminSite):
+    """
+    Admin site whose model admins all emit audit events.
 
     Installed through ``AdminConfig.default_site`` so that admin classes
     declared by Django itself, or by a third-party app, are covered as well as
@@ -328,12 +330,11 @@ class AuditedAdminSite(AdminSite):
 
     def register(self, model_or_iterable, admin_class=None, **options):
         """Register the audited flavour of the given admin class."""
-        super().register(
-            model_or_iterable, audited(admin_class or ModelAdmin), **options
-        )
+        super().register(model_or_iterable, audited(admin_class or ModelAdmin), **options)
 
     def admin_view(self, view, cacheable=False):
-        """Record when a signed-in account without staff access tries an admin view.
+        """
+        Record when a signed-in account without staff access tries an admin view.
 
         Django asks ``has_permission`` several times per request, the login
         page included, so the refusal is recorded here instead: once per
@@ -344,9 +345,7 @@ class AuditedAdminSite(AdminSite):
 
         @wraps(guarded)
         def inner(request, *args, **kwargs):
-            refused = getattr(
-                request.user, "is_authenticated", False
-            ) and not self.has_permission(request)
+            refused = getattr(request.user, "is_authenticated", False) and not self.has_permission(request)
             response = guarded(request, *args, **kwargs)
             if refused:
                 log(

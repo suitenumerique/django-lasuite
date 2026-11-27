@@ -64,7 +64,8 @@ _request_context: ContextVar[RequestContext | None] = ContextVar(
 
 
 def request_context() -> RequestContext:
-    """Return the context of the request being served, as set by ``AuditLogMiddleware``.
+    """
+    Return the context of the request being served, as set by ``AuditLogMiddleware``.
 
     It is empty outside a request.
     """
@@ -82,7 +83,8 @@ def reset_request_context(token: Token) -> None:
 
 
 class AuditLogMiddleware:
-    """Settle the request id and the request context, then echo the id.
+    """
+    Settle the request id and the request context, then echo the id.
 
     It must come right after ``DockerflowMiddleware``, which sets the id from
     the inbound ``DOCKERFLOW_REQUEST_ID_HEADER_NAME`` header. Unless

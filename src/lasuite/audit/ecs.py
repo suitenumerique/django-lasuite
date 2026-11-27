@@ -1,4 +1,5 @@
-"""What the Elastic Common Schema says about audit events.
+"""
+What the Elastic Common Schema says about audit events.
 
 Reference:
 - https://github.com/elastic/ecs/blob/v9.5.0/schemas/event.yml
@@ -33,9 +34,7 @@ EXPECTED_EVENT_TYPES: dict[EventCategory, frozenset[EventType]] = {
             EventType.USER,
         }
     ),
-    EventCategory.AUTHENTICATION: frozenset(
-        {EventType.START, EventType.END, EventType.INFO}
-    ),
+    EventCategory.AUTHENTICATION: frozenset({EventType.START, EventType.END, EventType.INFO}),
     EventCategory.CONFIGURATION: frozenset(
         {
             EventType.ACCESS,
@@ -94,15 +93,11 @@ def is_expected(categories: Iterable[EventCategory], event_type: EventType) -> b
     return any(event_type in EXPECTED_EVENT_TYPES[category] for category in categories)
 
 
-def check_classification(
-    categories: Iterable[EventCategory | str], types: Iterable[EventType | str]
-) -> None:
+def check_classification(categories: Iterable[EventCategory | str], types: Iterable[EventType | str]) -> None:
     """Raise ``ValueError`` unless every type is expected by one of the categories."""
     categories = [EventCategory(category) for category in categories]
     unexpected = [
-        str(event_type)
-        for event_type in (EventType(item) for item in types)
-        if not is_expected(categories, event_type)
+        str(event_type) for event_type in (EventType(item) for item in types) if not is_expected(categories, event_type)
     ]
     if unexpected:
         raise ValueError(
@@ -124,7 +119,7 @@ def stream_fields() -> dict[str, dict[str, str]]:
         "data_stream": {
             "type": "logs",
             "dataset": name,
-            "namespace": settings.AUDIT_LOG_DATA_STREAM_NAMESPACE,
+            "namespace": getattr(settings, "AUDIT_LOG_DATA_STREAM_NAMESPACE", "default"),
         },
         "event": {"dataset": name},
     }

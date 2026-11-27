@@ -27,7 +27,7 @@ class _CollectingHandler(logging.Handler):
 
 @contextmanager
 def capture_audit() -> Iterator[list[dict[str, Any]]]:
-    """Collect the audit documents emitted inside the block"""
+    """Collect the audit documents emitted inside the block."""
     logger = logging.getLogger(AUDIT_LOGGER_NAME)
     handler = _CollectingHandler()
     previous_level = logger.level
@@ -40,21 +40,17 @@ def capture_audit() -> Iterator[list[dict[str, Any]]]:
         logger.setLevel(previous_level)
 
 
-def find_events(
-    events: list[dict[str, Any]], action: Action | str
-) -> list[dict[str, Any]]:
+def find_events(events: list[dict[str, Any]], action: Action | str) -> list[dict[str, Any]]:
     """Return the captured events whose ``event.action`` is ``action``."""
-    return [
-        event for event in events if event.get("event", {}).get("action") == str(action)
-    ]
+    return [event for event in events if event.get("event", {}).get("action") == str(action)]
 
 
 @contextmanager
 def override_registration(model, **options) -> Iterator[None]:
     """Register ``model`` with ``options`` inside the block, whatever it was before."""
     previous = registry.unregister(model)
-    registry.register(model, **options)
     try:
+        registry.register(model, **options)
         yield
     finally:
         registry.unregister(model)

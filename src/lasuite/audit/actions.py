@@ -8,7 +8,8 @@ from .enums import EventCategory, EventType
 
 @dataclass(frozen=True)
 class Action:
-    """An audited action: its dotted name and its ECS classification.
+    """
+    An audited action: its dotted name and its ECS classification.
 
     ``category`` and ``types`` are the defaults of every event of the action:
     a ``category`` or ``types`` given to ``log`` wins over them. Without a
@@ -27,4 +28,5 @@ class Action:
         check_classification([self.category or DEFAULT_CATEGORY], self.types)
 
     def __str__(self) -> str:
+        """Return the dotted action name."""
         return self.name

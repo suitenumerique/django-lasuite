@@ -1,4 +1,5 @@
-"""Resolve who is acting: actor type, identifiers, auth method and tenant.
+"""
+Resolve who is acting: actor type, identifiers, auth method and tenant.
 
 Personal data is kept to a minimum on purpose: a person is identified by its
 primary key, its OIDC ``sub`` when it has one and the domain of its email
@@ -61,7 +62,8 @@ def auth_method_for_backend(backend: str | None) -> str:
 
 
 def request_auth_method(request) -> str:
-    """Return how ``request`` was authenticated.
+    """
+    Return how ``request`` was authenticated.
 
     A DRF request names its authenticator. A plain Django request, as served
     by the admin or the logout view, can only be authenticated by its session.
@@ -96,7 +98,8 @@ def _is_authenticated(user) -> bool:
 
 
 def _is_account(user) -> bool:
-    """Tell whether ``user`` is a user account.
+    """
+    Tell whether ``user`` is a user account.
 
     It stays one once deleted, when Django clears its primary key.
     """
@@ -121,7 +124,8 @@ def _default_actor_type(request, user, client_id) -> ActorType:
 
 
 def describe_user(user) -> dict[str, Any]:
-    """Return the ECS fields identifying a person: id and email domain.
+    """
+    Return the ECS fields identifying a person: id and email domain.
 
     The id is missing for accounts that were deleted.
     """
@@ -150,7 +154,8 @@ def describe_actor(
     client_id: str | None = None,
     auth_method: str | None = None,
 ) -> dict[str, Any]:
-    """Return the fields describing the actor.
+    """
+    Return the fields describing the actor.
 
     That is the ECS ``user`` and ``organization`` fields, the name of the
     service acting, if any, reported as ``service.origin.name``, and the
@@ -174,13 +179,9 @@ def describe_actor(
         "auth": {"method": auth_method or request_auth_method(request)},
         "application": {"client_id": client_id},
     }
-    tenant = client_id or (
-        email_domain(getattr(user, "email", None)) if is_account else None
-    )
+    tenant = client_id or (email_domain(getattr(user, "email", None)) if is_account else None)
     return {
-        "user": (
-            {**describe_user(user), "roles": user_roles(user)} if is_account else None
-        ),
+        "user": ({**describe_user(user), "roles": user_roles(user)} if is_account else None),
         "organization": {"id": tenant},
         "service": user.get_username() if _is_service(user) else None,
         "lasuite": lasuite,

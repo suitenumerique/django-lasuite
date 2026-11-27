@@ -4,7 +4,8 @@ from enum import StrEnum
 
 
 class Outcome(StrEnum):
-    """Whether the audited action succeeded, failed, or was refused.
+    """
+    Whether the audited action succeeded, failed, or was refused.
 
     ``unknown`` is for an action whose result was reported in terms the
     backend does not recognise.
@@ -29,7 +30,8 @@ class Reason(StrEnum):
 
 
 class ActorType(StrEnum):
-    """Kind of principal behind an action.
+    """
+    Kind of principal behind an action.
 
     ``user.*`` is the account whose authority the action used: the actor for
     ``user``, the delegating user for ``application``, absent otherwise.

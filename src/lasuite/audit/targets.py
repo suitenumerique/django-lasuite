@@ -1,7 +1,8 @@
-"""Describe the resource an audit event is about, as an ECS ``entity.target``.
+"""
+Describe the resource an audit event is about, as an ECS ``entity.target``.
 
 The fields describing each model are those registered for it, see
-``core.audit.registry``. A target is always identified by its model name and
+``lasuite.audit.registry``. A target is always identified by its model name and
 primary key, so a model that is not registered is still identifiable, just
 less detailed.
 """
@@ -27,7 +28,8 @@ def _is_user(obj: Any) -> bool:
 
 
 def describe_target(obj: Any) -> dict[str, Any]:
-    """Return the ``entity.target`` fields of a target.
+    """
+    Return the ``entity.target`` fields of a target.
 
     ``id`` is its primary key and ``sub_type`` its model name. ``type`` is the
     ECS entity type registered for its model, ``user`` for a user. A
@@ -49,9 +51,7 @@ def describe_target(obj: Any) -> dict[str, Any]:
         try:
             raw[name] = render_value(getattr(obj, name))
         except Exception:  # pylint: disable=broad-exception-caught
-            _logger.exception(
-                "Audit field %r of %s could not be read", name, meta.label
-            )
+            _logger.exception("Audit field %r of %s could not be read", name, meta.label)
     if _is_user(obj):
         raw["sub"] = user_sub(obj)
     return prune_empty(
@@ -66,7 +66,8 @@ def describe_target(obj: Any) -> dict[str, Any]:
 
 
 def user_target_of(obj: Any) -> Any:
-    """Return the account an event on ``obj`` is about, if any.
+    """
+    Return the account an event on ``obj`` is about, if any.
 
     It is ``obj`` itself for a user, else the attribute registered as the
     ``user_target`` of its model, as the user an access is granted to.
@@ -82,8 +83,6 @@ def user_target_of(obj: Any) -> Any:
     try:
         user = getattr(obj, attribute)
     except Exception:  # pylint: disable=broad-exception-caught
-        _logger.exception(
-            "Audit user target %r of %s could not be read", attribute, meta.label
-        )
+        _logger.exception("Audit user target %r of %s could not be read", attribute, meta.label)
         return None
     return user if _is_user(user) else None

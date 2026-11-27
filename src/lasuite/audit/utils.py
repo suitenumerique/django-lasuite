@@ -8,7 +8,8 @@ from django.db.models import Model, QuerySet
 
 
 def render_value(value: Any) -> Any:
-    """Render a value as something stable and JSON-friendly.
+    """
+    Render a value as something stable and JSON-friendly.
 
     Model instances are reduced to their primary key, enums to their value.
     """
@@ -26,7 +27,8 @@ def render_value(value: Any) -> Any:
 
 
 def exception_type(error: BaseException) -> str:
-    """Return the dotted name of an exception's class.
+    """
+    Return the dotted name of an exception's class.
 
     Audit events record it rather than the message, which may carry personal
     data.
@@ -36,7 +38,8 @@ def exception_type(error: BaseException) -> str:
 
 
 def prune_empty(value: Any, depth: int | None = None) -> Any:
-    """Drop ``None`` values and empty mappings, recursively.
+    """
+    Drop ``None`` values and empty mappings, recursively.
 
     With ``depth``, only that many levels are pruned: the values below are
     kept whole, ``None`` and empty mappings included.

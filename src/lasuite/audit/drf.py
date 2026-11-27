@@ -1,4 +1,5 @@
-"""Django REST framework integration
+"""
+Django REST framework integration.
 
 ``AuditViewMixin`` turns every response of an audited action into one audit
 event, from DRF's ``finalize_response`` hook, which runs for successes and for
@@ -8,11 +9,11 @@ internal error from ``handle_exception`` before it propagates.
 The CRUD actions a viewset audits are mapped in ``audit_actions``.
 Extra action names require a decorator::
 
-    class RoomViewSet(audit.AuditViewMixin, viewsets.ModelViewSet):
-        audit_actions = {"create": ROOM_CREATE, "retrieve": ROOM_RETRIEVE}
+    class DocumentViewSet(audit.AuditViewMixin, viewsets.ModelViewSet):
+        audit_actions = {"create": "document.create", "retrieve": "document.retrieve"}
 
-        @action(detail=True, methods=["post"], audit_action=ROOM_INVITE)
-        def invite(self, request, pk=None): ...
+        @action(detail=True, methods=["post"], audit_action="document.publish")
+        def publish(self, request, pk=None): ...
 
 A refusal is recorded under the action that was attempted, with its outcome
 and reason derived from the response status.
@@ -22,6 +23,8 @@ import copy
 import logging
 from collections.abc import Mapping
 from typing import Any
+
+from rest_framework import status
 
 from .actions import Action
 from .actor import FROM_REQUEST
@@ -52,7 +55,8 @@ _logger = logging.getLogger(__name__)
 
 
 def error_message(response) -> Any:
-    """Return the message of an error response, as DRF or the view wrote it.
+    """
+    Return the message of an error response, as DRF or the view wrote it.
 
     An OAuth 2.0 error (RFC 6749 §5.2) carries its message in
     ``error_description``, its ``error`` being only a code.
@@ -64,7 +68,8 @@ def error_message(response) -> Any:
 
 
 class AuditViewMixin:
-    """Emit one audit event per response of an audited action.
+    """
+    Emit one audit event per response of an audited action.
 
     ``audit_actions`` maps the CRUD actions only. An extra action is audited
     by passing ``audit_action`` to its ``@action`` decorator.
@@ -114,18 +119,20 @@ class AuditViewMixin:
         return response
 
     def handle_exception(self, exc):
-        """Audit an exception DRF cannot turn into a response, then let it propagate.
+        """
+        Audit an exception DRF cannot turn into a response, then let it propagate.
 
         Only its class is recorded since its message could carry personal data.
         """
         try:
             return super().handle_exception(exc)
         except Exception as error:
-            self.emit_audit_event(self.request, 500, error_type=exception_type(error))
+            self.emit_audit_event(self.request, status.HTTP_500_INTERNAL_SERVER_ERROR, error_type=exception_type(error))
             raise
 
     def get_audit_action(self) -> Action | str | None:
-        """Return what the current request audits, if anything.
+        """
+        Return what the current request audits, if anything.
 
         An extra action is read from its handler, so a request that reaches
         none, as an OPTIONS request or a refused method, audits nothing.
@@ -137,7 +144,8 @@ class AuditViewMixin:
         return getattr(handler, "kwargs", {}).get("audit_action")
 
     def emit_audit_event(self, request, status_code, error=None, error_type=None):
-        """Emit the event of the current action, if it is audited.
+        """
+        Emit the event of the current action, if it is audited.
 
         Never raises: a response must not fail because it could not be audited.
         """
@@ -150,7 +158,8 @@ class AuditViewMixin:
             _logger.exception("Audit event of %s could not be emitted", request.path)
 
     def get_audit_fields(self, status_code, error=None) -> dict[str, Any]:
-        """Return the fields of the event for a response of ``status_code``.
+        """
+        Return the fields of the event for a response of ``status_code``.
 
         The category and types of the ``Action`` win over those derived from
         the DRF action. A 401 is also filed under ``authentication``, so that
@@ -160,35 +169,25 @@ class AuditViewMixin:
         category, types = None, []
         if isinstance(action, Action):
             category, types = action.category, list(action.types)
-        details = {
-            key: value
-            for key, value in (self.audit_details or {}).items()
-            if key not in EVENT_FIELDS
-        }
+        details = {key: value for key, value in (self.audit_details or {}).items() if key not in EVENT_FIELDS}
         category = category or DEFAULT_CATEGORY
         fields = {
             **details,
             "category": (
-                [category, EventCategory.AUTHENTICATION]
-                if status_code == 401
-                else category
+                [category, EventCategory.AUTHENTICATION] if status_code == status.HTTP_401_UNAUTHORIZED else category
             ),
-            "types": types
-            or [ACTION_TYPES.get(getattr(self, "action", None), EventType.INFO)],
+            "types": types or [ACTION_TYPES.get(getattr(self, "action", None), EventType.INFO)],
             "target": self.audit_target,
             "user_target": self.audit_user_target,
             "actor": self.audit_actor,
             "status_code": status_code,
         }
-        if status_code >= 400:
+        if status_code >= status.HTTP_400_BAD_REQUEST:
             fields |= {
-                "outcome": (
-                    Outcome.DENIED
-                    if status_code in DENIED_STATUSES
-                    else Outcome.FAILURE
-                ),
+                "outcome": (Outcome.DENIED if status_code in DENIED_STATUSES else Outcome.FAILURE),
                 "reason": STATUS_REASONS.get(
-                    status_code, Reason.INTERNAL_ERROR if status_code >= 500 else None
+                    status_code,
+                    Reason.INTERNAL_ERROR if status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR else None,
                 ),
                 "error": error,
             }
